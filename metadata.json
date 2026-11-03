@@ -1,0 +1,6 @@
+{
+  "name": "Nurses Pillow",
+  "description": "Sanctuary-grade travel nurse housing marketplace and clinical credentialing verification portal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,23 @@
+--- src/components/NurseSupportModal.tsx
++++ src/components/NurseSupportModal.tsx
+@@ -165,10 +165,16 @@
+
+             <button
+               type="submit"
+-              className="w-full py-3 rounded-full bg-[#0A6FA8] hover:bg-[#0C7EBF] active:bg-[#095C8C] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#0A6FA8] text-white text-xs font-semibold shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
++              disabled={isSubmitting}
++              className="w-full py-3 rounded-full bg-[#0A6FA8] hover:bg-[#0C7EBF] active:bg-[#095C8C] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#0A6FA8] text-white text-xs font-semibold shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 transition-colors"
+             >
+-              <span>Send support request</span>
+-              <span className="material-symbols-outlined text-sm">arrow_forward</span>
++              {isSubmitting ? (
++                <span>Sending...</span>
++              ) : (
++                <>
++                  <span>Send support request</span>
++                  <span className="material-symbols-outlined text-sm">arrow_forward</span>
++                </>
++              )}
+             </button>
+           </form>
+         )}

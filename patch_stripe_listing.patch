@@ -1,0 +1,36 @@
+--- src/services/stripeConnect.ts
++++ src/services/stripeConnect.ts
+@@ -410,6 +410,7 @@
+   // Execute sandbox split payment intent
+   async processSplitPayment(params: {
+     monthlyRent: number;
++    listingId: string;
+     cleaningFee: number;
+     securityDeposit: number;
+     cardNumber?: string;
+@@ -418,6 +419,7 @@
+   }): Promise<StripeSplitTransaction> {
+     const {
+       monthlyRent,
++      listingId,
+       cleaningFee,
+       securityDeposit,
+       cardNumber = '4242',
+@@ -450,6 +452,7 @@
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           monthlyRent,
++          listingId,
+           cleaningFee,
+           securityDeposit,
+           hostConnectedAccountId,
+--- src/components/ItemizedCheckoutModal.tsx
++++ src/components/ItemizedCheckoutModal.tsx
+@@ -133,6 +133,7 @@
+       // Execute Stripe Connect split payment in sandbox mode with final effective rate
+       const splitTxn = await stripeConnect.processSplitPayment({
+         monthlyRent,
++        listingId: listing.id,
+         cleaningFee,
+         securityDeposit,
+         cardNumber,

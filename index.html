@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/nurses-pillow-logo.png" />
+    <title>Nurses Pillow</title>
+    <meta name="description" content="Sanctuary-grade travel nurse housing marketplace and clinical credentialing verification portal." />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="googlebot" content="noindex, nofollow" />
+    <meta property="og:title" content="Nurses Pillow" />
+    <meta property="og:description" content="Sanctuary-grade travel nurse housing marketplace and clinical credentialing verification portal." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script>
+      // Suppress benign Vite HMR WebSocket warning in cloud preview environment
+      window.addEventListener('unhandledrejection', function(event) {
+        var reason = event.reason;
+        var text = (reason && (reason.message || reason.stack || String(reason))) || '';
+        if (text.indexOf('WebSocket closed without opened') !== -1 || text.indexOf('failed to connect to websocket') !== -1) {
+          event.preventDefault();
+        }
+      });
+    </script>
+  </head>
+  <body class="bg-[#faf8ff] text-[#001848] antialiased">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      (function() {
+        // Fallback to immediately showing fonts if JS fonts API fails or is slow
+        document.documentElement.classList.add("fonts-loaded");
+      })();
+    </script>
+    <script>
+      (function () {
+        if (/eruda=true/.test(window.location.search)) {
+          var script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/eruda';
+          document.body.appendChild(script);
+          script.onload = function () {
+            eruda.init();
+          }
+        }
+      })();
+    </script>
+  </body>
+</html>

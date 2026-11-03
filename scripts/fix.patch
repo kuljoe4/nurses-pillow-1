@@ -1,0 +1,11 @@
+--- src/lib/googleMapsCommute.ts
++++ src/lib/googleMapsCommute.ts
+@@ -186,7 +186,7 @@
+       normalized.includes(key.toLowerCase()) ||
+       normalized.includes(hospital.shortName.toLowerCase()) ||
+       hospital.name.toLowerCase().includes(normalized) ||
+-      (hospital.address (hospital.address && normalized.includes(hospital.address.toLowerCase()))(hospital.address && normalized.includes(hospital.address.toLowerCase())) hospital.address.toLowerCase().includes(normalized))
++      (hospital.address && hospital.address.toLowerCase().includes(normalized))
+     ) {
+       return hospital;
+     }

@@ -1,0 +1,8 @@
+allowBuilds:
+  '@firebase/util': false
+  '@google/genai': false
+  bcrypt: false
+  esbuild: false
+  protobufjs: false
+packages:
+  - '.'

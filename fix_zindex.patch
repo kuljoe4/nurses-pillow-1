@@ -1,0 +1,11 @@
+--- src/components/Header.tsx
++++ src/components/Header.tsx
+@@ -885,7 +885,7 @@
+       {/* Mobile Drawer */}
+       {isMobileMenuOpen && (
+         <div
+-          className="lg:hidden fixed inset-x-0 top-20 bottom-0 bg-black/40 backdrop-blur-xs z-40 overflow-y-auto"
++          className="lg:hidden fixed inset-x-0 top-20 bottom-0 bg-black/40 backdrop-blur-xs z-[60] overflow-y-auto"
+           onClick={(e) => {
+             if (e.target === e.currentTarget) {
+               setIsMobileMenuOpen(false);

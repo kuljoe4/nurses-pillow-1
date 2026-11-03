@@ -1,0 +1,55 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Test Artifacts & Reports
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Vite & Bundler Caches
+.vite/
+dist-ssr/
+
+# TypeScript Incremental Build Information
+*.tsbuildinfo
+
+# IDEs & Editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS Thumbnail & Temporary Files
+Thumbs.db
+Desktop.ini
+*~
+*.swp
+*.swo
+
+# Temporary utility and merge scripts
+all_remote_branches.txt
+check_merges.py
+check_remaining.py
+full_agents.txt
+get_remaining.py
+merge_clean.py
+merge_remaining.py
+merge_remaining_ours.py
+pr_merge_status.txt
+remaining_branches.txt
+remaining_status.txt
+
+# Lockfiles
+package-lock.json
+bun.lock
+
+nurses-pillow-production-78c11d4cbd91nurses-pillow-production-78c11d4cbd91.json
+
+
