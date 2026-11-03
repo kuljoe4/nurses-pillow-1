@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isStateActive } from '../../lib/constants/states.js';
+import { isStateActive, getStateName, getStateCoordinates } from '../../lib/constants/states';
 
 describe('Multi-State Geo-Expansion Validation', () => {
   describe('isStateActive', () => {
@@ -25,6 +25,26 @@ describe('Multi-State Geo-Expansion Validation', () => {
       expect(isStateActive('NY')).toBe(false);
       // Invalid input
       expect(isStateActive('XYZ')).toBe(false);
+    });
+    it('should support dynamic active states when a new territory is approved', () => {
+      const dynamicList = ['NC', 'MD', 'CT', 'ND', 'KS', 'FL'];
+      expect(isStateActive('FL', dynamicList)).toBe(true);
+      expect(isStateActive('TX', dynamicList)).toBe(false);
+    });
+  });
+
+  describe('getStateName and getStateCoordinates helpers', () => {
+    it('should return human-readable state names', () => {
+      expect(getStateName('FL')).toBe('Florida');
+      expect(getStateName('NC')).toBe('North Carolina');
+      expect(getStateName('TX')).toBe('Texas');
+    });
+
+    it('should return valid medical hub coordinates for state map centering', () => {
+      const flCoords = getStateCoordinates('FL');
+      expect(flCoords.lat).toBeCloseTo(28.5383, 1);
+      expect(flCoords.lng).toBeCloseTo(-81.3792, 1);
+      expect(flCoords.hubName).toContain('Florida');
     });
   });
 });

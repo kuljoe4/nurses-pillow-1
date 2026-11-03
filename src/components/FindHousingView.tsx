@@ -377,9 +377,16 @@ export const FindHousingView: React.FC<FindHousingViewProps> = ({
       return;
     }
 
+    const [y1, m1, d1] = earliestCheckIn.split('-').map(Number);
+    const startD = new Date(y1, m1 - 1, d1, 12);
+    const [y2, m2, d2] = latestCheckOut.split('-').map(Number);
+    const endD = new Date(y2, m2 - 1, d2, 12);
+    const diffDays = Math.max(1, Math.round((endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24)));
+    const calculatedWeeks = Math.max(1, Math.round(diffDays / 7));
+
     onGoToSearchListings({
       hospital: selectedHospital,
-      duration: 'customDates',
+      duration: String(calculatedWeeks),
       radius: commuteBuffer,
       checkInDate: earliestCheckIn,
       checkOutDate: latestCheckOut,

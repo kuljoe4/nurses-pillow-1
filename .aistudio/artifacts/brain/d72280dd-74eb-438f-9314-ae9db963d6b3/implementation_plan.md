@@ -1,216 +1,220 @@
-# Implementation Plan: Stripe Connect v2 & Production-Ready Sandbox Architecture
+# Nurses Pillow: Milestone 2 Architecture & Comprehensive Platform Delivery
 
-Comprehensive architectural review, Stripe Accounts v2 deep research, Direct vs. Destination Charge analysis, and execution plan to eliminate synthetic mocks and enable authentic Stripe test sandbox operations for Nurses Pillow.
-
-## Completed Milestones & System Status
-
-I have resolved the issues and implemented the role-isolated routing and non-custodial Stripe Direct Charge workflow:
-
-### Summary of Enhancements
-
-1. **Dashboard Route Protection & Role Isolation:**
-   - **Clinician Dashboard:** Removed the "Host Portal" button for standard clinicians (`role === 'nurse'`), replacing it with an onboarding "List Sanctuary" button.
-   - **Navigation Guard:** Standard clinicians attempting to access the Host Dashboard are routed to the List Sanctuary onboarding workflow (`host-onboarding`) with an informative welcome notice.
-   - **Dual-Role Access:** Dual-role clinicians (`role === 'dual'` or `isHostVerified`) have seamless toggle access to both the Clinician Dashboard and Host Portal across desktop and mobile.
-   - **Header & Mobile Drawer Synchronization:** Streamlined both desktop and mobile main navigation to exactly 3 role-tailored links per perspective (eliminating duplicates and redundant dashboard entries):
-     - *Clinician:* My Dashboard, Explore Stays, Search & Map
-     - *Dual Host:* Clinician Dashboard, Host Portal, Explore Stays
-     - *Property Host:* My Sanctuaries, Explore Stays, Search & Map
-     - *Guest:* Explore Stays, Search & Map, For Property Hosts
-     - *Operations Admin:* Operations Portal, Explore Stays, Search & Map
-
-2. **Non-Custodial Stripe Direct Charge, Hold, Capture & Release:**
-   - **Non-Custodial Architecture:** Booking requests place a manual pre-authorization hold directly on the host's connected Stripe account (`{ stripeAccount: hostConnectedAccountId }`), specifying an automated 5% platform split to Nurses Pillow while upholding the $0 traveler fee promise.
-   - **Host Approval (`handleApproveBooking` / `/api/stripe/payment-intent/:id/capture` / `/api/bookings/:id/accept`):** Resolved the capture failure (`Failed to approve booking [ID: bk-9bf03732-f99b-4057-a0b9-a4960e462c61]`) by passing the host's connected account context to Stripe, and providing resilient handling for test and sandbox payment intents.
-   - **Host Decline (`handleDeclineBooking` / `/api/stripe/payment-intent/:id/cancel` / `/api/bookings/:id/decline`):** Immediately cancels the payment intent and releases the pre-auth hold back to the clinician's card.
-   - **Status Feedback:** Added compliant semantic status tags (Teal-Green `#2F6E5E` for accepted bookings, Rust-Red `#A8452E` for declined bookings, and Amber `#B9822E` for pending review).
-
-### Verification
-- **API Tests:** Executed test captures and cancellations on the previously failing booking ID (`bk-9bf03732-f99b-4057-a0b9-a4960e462c61`); both succeeded with HTTP 200.
-- **Unit & Integration Tests:** All 66 tests across 11 test suites passed.
-- **Build & Lint Checks:** Applet compiled and passed TypeScript type checking with zero errors.
+A clinician-first expansion of the Nurses Pillow platform enabling seamless stay extensions, secure in-app messaging, completed-stay reviews, support ticketing, host multi-room operations, dynamic platform fee controls, executive marketplace analytics (GBV, revenue, conversion, zero-inventory demand), and automated background jobs.
 
 ---
 
 ## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> **Stripe Connect v2 Accounts & Architecture Review:**
+> The following architectural decisions have been aligned with the Milestone 2 technical specification:
 
-### 1. Stripe Accounts v2 In-Depth Research & Validation
-- **Stripe Connect v2 Paradigm:**
-  Stripe has transitioned modern platform onboarding from legacy v1 fixed account types (`standard`, `express`, `custom`) to **Accounts v2** (`/v2/core/accounts`). Platforms created recently default to v2 and often cannot enable legacy v1 accounts.
-- **SDK Support in Nurses Pillow:**
-  The installed SDK (`stripe@22.6.2`) natively includes the complete Stripe v2 resource suite:
-  - `stripe.v2.core.accounts`: Supports `create`, `retrieve`, `update`, `list`, and `close`.
-  - `stripe.v2.core.accountLinks`: Supports `create` with explicit `use_case` schemas.
-- **Why v2 is Recommended by Stripe:**
-  - **Modular Configurations:** Instead of locking an account into an immutable legacy type, v2 assigns capabilities via configurations:
-    - `merchant`: Grants `card_payments` and `stripe_balance.payouts`. This designates the connected account as the **Merchant of Record** for collecting payments directly from customers.
-    - `recipient`: Allows an account to receive transfers/payouts only (for platforms acting as the merchant).
-    - `customer`: For inbound customer payment and subscription management.
-  - **Dashboard Access:** Configured cleanly via `dashboard: 'express' | 'full' | 'none'`.
-- **v2 Creation Contract for Nurses Pillow Hosts:**
-  ```ts
-  const account = await stripe.v2.core.accounts.create({
-    contact_email: hostEmail,
-    display_name: hostName || 'Nurses Pillow Sanctuary Host',
-    dashboard: 'express',
-    configuration: {
-      merchant: {}
-    },
-    metadata: {
-      host_id: hostId,
-      platform: 'nurses_pillow'
-    }
-  });
-  ```
-- **v2 Onboarding Link Generation:**
-  ```ts
-  const accountLink = await stripe.v2.core.accountLinks.create({
-    account: hostConnectedAccountId,
-    use_case: {
-      type: 'account_onboarding',
-      account_onboarding: {
-        configurations: ['merchant'],
-        refresh_url: `${origin}/host-portal?stripe_refresh=true`,
-        return_url: `${origin}/host-portal?stripe_success=true`
-      }
-    }
-  });
-  ```
-
----
-
-### 2. Direct Charges vs. Destination Charges: Comparative Audit
-
-| Parameter | Direct Charges (`{ stripeAccount: hostId }`) | Destination Charges (`transfer_data.destination`) | Nurses Pillow Implementation Choice |
-| :--- | :--- | :--- | :--- |
-| **Merchant of Record** | The Property Host (`acct_...`) | Nurses Pillow Platform (or `on_behalf_of: hostId`) | **Direct Charge:** Pure non-custodial compliance. |
-| **Account Configuration** | Requires `configuration: { merchant: {} }` | Requires `configuration: { recipient: {} }` | **Merchant Configuration** via Stripe v2. |
-| **Platform Fee Split** | `application_fee_amount: 5%` collected by platform | `application_fee_amount: 5%` retained by platform | **5% Application Fee** deducted automatically by Stripe. |
-| **Pre-Authorization Hold** | `capture_method: 'manual'` placed on host account | `capture_method: 'manual'` placed on platform account | **Direct Hold:** 7-day card hold placed directly on host account. |
-| **Host Approval** | Host captures via `stripe.paymentIntents.capture(id, {}, { stripeAccount: hostId })` | Platform captures on platform account | Connected account context passed to Stripe capture. |
-| **Host Decline** | Host cancels via `stripe.paymentIntents.cancel(id, {}, { stripeAccount: hostId })` | Platform cancels on platform account | Connected account context passed to Stripe cancel. |
-| **Clinician Tokenization** | Elements tokenizes with `stripeAccount: hostId` header | Elements tokenizes with platform public key | Handshake passes host account ID so token is valid on host account. |
-
----
-
-### 3. Audit of Existing Payment Code: Invalids, Bugs & Error-Prone Patterns
-
-Our code audit revealed several specific invalids in the existing setup:
-
-1. **Invalid Hardcoded Account IDs:**
-   - *Found in:* `src/components/ItemizedCheckoutModal.tsx` line 147 (`hostConnectedAccountId: 'acct_1NC_DukeHost_Express'`).
-   - *Bug/Error:* When calling the Stripe API, `'acct_1NC_DukeHost_Express'` is rejected with `StripeInvalidRequestError: No such account`.
-   - *Fix:* Ensure genuine test account IDs created via `stripe.v2.core.accounts.create` are associated with hosts and passed to checkout.
-2. **Missing `stripeAccount` Context in Capture/Cancel Endpoints:**
-   - *Found in:* `server.ts` routes `/api/stripe/payment-intent/:id/capture` and `/api/bookings/:id/accept`.
-   - *Bug/Error:* Calling `stripe.paymentIntents.capture(id)` without `{ stripeAccount: hostConnectedAccountId }` causes Stripe to fail with `No such payment_intent: pi_...` because the direct charge exists exclusively in the host's account partition.
-   - *Fix:* Pass `{ stripeAccount: hostConnectedAccountId }` to all retrieval, capture, and cancellation calls.
-3. **Synthetic Mock IDs Bypassing Sandbox:**
-   - *Found in:* `server.ts` fallback generators creating `pi_test_...` or `pi_sandbox_...` strings.
-   - *Bug/Error:* Prevents real Stripe test cards (`4242 4242 4242 4242`) from running through Stripe's authorization and webhook engine.
-   - *Fix:* Route all test sandbox transactions through authentic Stripe API calls with clear validation error messages when Stripe test keys are unconfigured.
+- **Executive Analytics & BI Suite**: Dedicated Marketplace Analytics engine in the Super-Admin Portal computing Gross Booking Value (GBV), Net Platform Revenue, Request-to-Acceptance Conversion, Cancellation Rates, Average Length of Stay (ALOS), and the "Demand-Without-Inventory" intelligence report with date-range and state-level filters.
+- **Unified Rollout Scope**: Full implementation across all 10 core systems: Edge RBAC un-gating & account suspension guard, 13 relational schema extensions & B2B/matching readiness tables, GCS private asset storage service, Nurse Stay Management & Extensions, Host Operations & Multi-Room Calendar, In-App Text Messaging with 5-minute offline digests, Admin-Editable Notification Dispatcher (13 event keys), Completed-Stay Two-Way Reviews & Safety Moderation, Super-Admin Dynamic 15% Fee Slider & Promo Engine, and Webhook/Cron automation.
+- **Relational Key Standardization**: To ensure zero SQL constraint conflicts with existing `users` (`usr_...`) and `listings` (`lst_...`) identifiers, foreign keys in new tables utilize `VARCHAR(255)` instead of strict `UUID` references.
+- **Design System Fidelity (`AGENTS.md`)**:
+  - **Typography**: Poppins for all UI elements; Kaushan Script reserved strictly for the tagline *"Rest Well. Heal Better."*.
+  - **Signature Icon**: Favorite control is a rounded pillow shape (outline when unsaved, navy filled with spring bounce when saved)—generic hearts are strictly banned.
+  - **Tabular Figures**: All price breakdowns, extension quotes, analytics metrics, dates, distances, and earnings enforce `tabular-nums`.
+  - **Anti-Slop Cleanliness**: Zero internal screen codes (e.g., `Screen A-02`), no fake telemetry tickers, no urgency countdown pressure, and simple, soothing sentence case.
 
 ---
 
 ## 1. Overview & Core Concept
 
-### What It Delivers
-A 100% production-ready, authentic Stripe sandbox architecture where:
-1. Every property host is provisioned with a real **Stripe Connect v2 Account** with `configuration: { merchant: {} }` and `dashboard: 'express'`.
-2. Property hosts can launch real Stripe-hosted onboarding to connect test bank accounts and access their Express dashboard.
-3. Clinicians place bookings using real Stripe test cards, creating real pre-authorization holds (`capture_method: 'manual'`) directly on the host's connected account.
-4. Host approval executes `stripe.paymentIntents.capture` directly on the connected account, settling 95% net rent to the host and 5% platform fee to Nurses Pillow.
-5. Host decline executes `stripe.paymentIntents.cancel`, releasing the pre-auth hold immediately with zero charges.
+- **What It Does**: Transitions Nurses Pillow from initial search and checkout into an operational marketplace supporting the entire clinical assignment lifecycle—from 30-day prorated stay extensions and secure direct host messaging, to multi-room availability management, two-way completed stay reviews, safety incident resolution, dynamic fee simulation, and data-driven marketplace analytics.
+- **Target Audience / Persona**:
+  - **Traveling Healthcare Clinicians**: Nurses and allied professionals on 8- to 26-week assignments who need predictable, quiet housing near their hospitals with $0 traveler fees and hassle-free lease extensions.
+  - **Verified Property Hosts**: Homeowners and property managers offering furnished rooms or entire homes who need independent multi-room availability calendars, guaranteed Stripe Connect payouts, and verified clinician rosters.
+  - **Super-Administrators & Operations**: Leadership monitoring financial metrics (GBV, revenue, take rate), identifying underserved hospital markets where nurses search with zero housing results, adjusting host platform fees (0%–15%), issuing promotional discounts, and managing platform safety.
+- **Key Value**: Delivers complete operational autonomy, transparent $0 traveler fee pricing, real-time assignment extension workflows, and deep visibility into marketplace health and regional housing demand.
 
 ---
 
-## 2. Technical Architecture & Component Flow
+## 2. Dedicated Marketplace Analytics & Business Intelligence (BI) Engine
+
+### A. Mathematical Definitions & Aggregation Pipeline (`GET /api/admin/analytics`)
+
+The Analytics API accepts query parameters `?startDate=...&endDate=...&state=...` and computes aggregate business intelligence directly from the PostgreSQL transaction ledger:
+
+1. **Gross Booking Value (GBV)**:
+   $$\text{GBV} = \sum (\text{total\_rent} + \text{cleaning\_fee} + \text{pet\_fee}) \quad \text{for bookings where status} \in (\text{'accepted'}, \text{'paid'}, \text{'active'}, \text{'completed'})$$
+   - Measures total transaction volume moving through Nurses Pillow before fee deductions or host payouts.
+   - Includes period-over-period delta calculation (e.g., `+14.2% vs previous 30 days`).
+
+2. **Platform Fee Revenue**:
+   $$\text{Platform Revenue} = \sum \left(\text{total\_rent} \times \frac{\text{platform\_host\_fee\_percent}}{100}\right)$$
+   - Tracks actual realized revenue from the dynamic host platform fee (default 5%, adjustable up to 15%).
+   - Displays effective platform take-rate percentage alongside gross dollar volume.
+
+3. **Booking Request-to-Acceptance Rate**:
+   $$\text{Acceptance Rate} = \left(\frac{\text{Count of Accepted Bookings}}{\text{Total Requested Bookings}}\right) \times 100$$
+   - Monitors host responsiveness and listing conversion efficiency.
+
+4. **Booking Cancellation Rate**:
+   $$\text{Cancellation Rate} = \left(\frac{\text{Count of Cancelled Bookings}}{\text{Total Confirmed Bookings}}\right) \times 100$$
+   - Flags market friction or housing mismatches before assignment start dates.
+
+5. **Average Length of Stay (ALOS)**:
+   $$\text{ALOS} = \text{AVG}(\text{end\_date} - \text{start\_date}) \quad \text{across confirmed bookings}$$
+   - Displays typical clinician assignment duration (e.g., `91.4 days` / `13.1 weeks`).
+
+6. **Demand-Without-Inventory Tracking ("Zero-Inventory Engine")**:
+   - Every time a clinician executes a hospital search (`GET /api/listings/search`), a background entry is recorded in `search_demand_logs`:
+     `hospital_name`, `city`, `state`, `latitude`, `longitude`, `radius_miles`, `duration_weeks`, `results_count`, `is_zero_inventory`.
+   - Aggregation query:
+     ```sql
+     SELECT hospital_name, city, state, 
+            COUNT(*) as total_searches,
+            COUNT(*) FILTER (WHERE results_count = 0) as zero_inventory_searches,
+            ROUND(COUNT(*) FILTER (WHERE results_count = 0)::numeric / COUNT(*) * 100, 1) as unmet_demand_rate,
+            MAX(searched_at) as last_searched_at
+     FROM search_demand_logs
+     WHERE searched_at BETWEEN $1 AND $2
+     GROUP BY hospital_name, city, state
+     HAVING COUNT(*) FILTER (WHERE results_count = 0) > 0
+     ORDER BY zero_inventory_searches DESC
+     LIMIT 25;
+     ```
+   - Directly informs host recruitment and regulatory state expansion priorities by highlighting the exact healthcare facilities where nurses want housing but no units are available.
+
+### B. User Interface & Presentation in Admin Portal
+
+- **Executive KPI Strip**: Clean 5-card layout with high-contrast tabular typography:
+  - `Gross Booking Value (GBV)`
+  - `Platform Revenue (5%)`
+  - `Acceptance Rate (%)`
+  - `Cancellation Rate (%)`
+  - `Average Stay Duration (Weeks)`
+- **Interactive Controls**:
+  - Date Range Selector (`Last 30 Days`, `Last 90 Days`, `Year to Date`, `All Time`).
+  - Territory / State Filter (`All Active States`, `NC`, `MD`, `CT`, `ND`, `KS`, or newly launched territories).
+  - "Export Analytics CSV" button for offline accounting and stakeholder reporting.
+- **Demand-Without-Inventory Command Table**:
+  - Medical Center Name & Health System
+  - City & State
+  - Total Nurse Inquiries
+  - Unmet Demand Rate (%)
+  - One-click action: "Initiate Host Outreach" to trigger targeted property recruitment near that hospital.
+- **Revenue & Booking Volume Visual Graph**: High-fidelity monthly trends bar chart illustrating GBV progression alongside net platform revenue.
+
+---
+
+## 3. Comprehensive System Architecture & Detailed Flows
+
+### System Architecture Diagram
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        Traveling Clinician Client                      │
-│   • Itemized Checkout Modal (Rent + Cleaning + Pet + $0 Traveler Fee)  │
-│   • Authentic Card Tokenization via Stripe Elements                    │
-└────────────────────────────────────┬───────────────────────────────────┘
-                                     │
-                                     ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                      Nurses Pillow Server API                          │
-│                                                                        │
-│   ┌─────────────────────────────────────────────────────────────────┐  │
-│   │               Stripe Connect v2 Accounts Engine                 │  │
-│   │   • POST /api/stripe/connect/create-account                     │  │
-│   │          Uses stripe.v2.core.accounts.create({ merchant: {} })  │  │
-│   │   • POST /api/stripe/connect/account-link                       │  │
-│   │          Uses stripe.v2.core.accountLinks.create                │  │
-│   │   • POST /api/checkout/create-booking-request                   │  │
-│   │          Uses stripe.paymentIntents.create (Direct Charge)      │  │
-│   │   • POST /api/stripe/payment-intent/:id/capture                 │  │
-│   │          Uses stripe.paymentIntents.capture ({ stripeAccount }) │  │
-│   │   • POST /api/stripe/payment-intent/:id/cancel                  │  │
-│   │          Uses stripe.paymentIntents.cancel ({ stripeAccount })  │  │
-│   │   • GET  /api/stripe/payment-intent/:id/status                  │  │
-│   └────────────────────────────────┬────────────────────────────────┘  │
-│                                    │                                   │
-│                                    ▼                                   │
-│   ┌─────────────────────────────────────────────────────────────────┐  │
-│   │                     PostgreSQL Database                         │  │
-│   │   users: stripe_connected_account_id, stripe_payouts_enabled    │  │
-│   │   bookings: stripe_payment_intent_id, payment_status, status    │  │
-│   └────────────────────────────────┬────────────────────────────────┘  │
-└────────────────────────────────────┼───────────────────────────────────┘
-                                     │
-                                     ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                        Stripe Test Sandbox API                         │
-│   • Accounts v2: stripe.v2.core.accounts.create({ configuration })     │
-│   • Account Links v2: stripe.v2.core.accountLinks.create               │
-│   • Direct Charge Manual Pre-Auth: stripe.paymentIntents.create        │
-│   • Non-Custodial Capture: stripe.paymentIntents.capture               │
-│   • Immediate Void: stripe.paymentIntents.cancel                       │
-└────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                               Nurses Pillow Web Client                                 │
+│  ┌───────────────────────┬──────────────────────┬──────────────────────┬────────────┐  │
+│  │     Nurse Portal      │    Host Operations   │   Messages Center    │Admin Desk  │  │
+│  │ - Current/Past Stays  │ - Multi-Room Cal.    │ - Threaded Chat      │-BI / GBV   │  │
+│  │ - 30-Day Ext. Quote   │ - Guest Roster       │ - Unread Indicators  │-Fee Slider │  │
+│  │ - Saved Pillows       │ - Arrival Guide      │ - Block Guards       │-Zero-Inv BI│  │
+│  │ - Billing / Receipts  │ - Stripe Connect     │ - Offline Email Dig. │-Promos     │  │
+│  └───────────┬───────────┴──────────┬───────────┴──────────┬───────────┴─────┬──────┘  │
+└──────────────┼──────────────────────┼──────────────────────┼─────────────────┼─────────┘
+               │                      │                      │                 │
+               ▼                      ▼                      ▼                 ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                        Express Application Server & Middleware                         │
+│  ┌────────────────────────┬───────────────────────┬─────────────────────────────────┐  │
+│  │ RBAC & Suspension Guard│ Rate Limiting & Auth  │ GCS Signed URL Asset Service    │  │
+│  └────────────────────────┴───────────────────────┴─────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────────────────────────────────┐  │
+│  │ Core Endpoints:                                                                  │  │
+│  │  • /api/admin/analytics (GBV, Revenue, Conversion, Zero-Inventory Report)        │  │
+│  │  • /api/nurse/stays, /api/bookings/:id/extensions, /api/nurse/saved-pillows       │  │
+│  │  • /api/host/dashboard-summary, /api/host/listings/:id/calendar, /api/host/guests│  │
+│  │  • /api/messages/threads, /api/safety/reports, /api/reviews                      │  │
+│  │  • /api/admin/settings/platform-fee, /api/admin/promos                           │  │
+│  │  • /api/webhooks/stripe, /api/webhooks/postmark                                  │  │
+│  └──────────────────────────────────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────────────────────────────────┐  │
+│  │ NotificationDispatcher: 13 Event Keys · Email (Postmark) · Push · In-App Alerts │  │
+│  └──────────────────────────────────────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────┬────────────────────────────────────────────┘
+                                            │
+                                            ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                        PostgreSQL Database (Railway Instance)                          │
+│  - search_demand_logs       - platform_settings (0-15%) - message_threads              │
+│  - calendar_blocks          - fee_change_logs           - messages                     │
+│  - stay_extensions          - promo_codes & redemptions - reviews (2-way)              │
+│  - saved_listings (pillows) - notification_templates    - safety_reports               │
+│  - user_blocks              - in_app_notifications      - support_tickets & msgs       │
+│  - organizations (B2B ready)- clinician_matching        - roommate_matching_profiles   │
+└────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Key Product Decisions & Trade-Offs
+## 4. Other Milestone 2 Subsystem Specifications
 
-- **Decision 1: Full Stripe Accounts v2 Implementation (No v1 Fallback Dependency):**
-  - *Chosen Approach:* Use `stripe.v2.core.accounts.create` and `stripe.v2.core.accountLinks.create` as the authoritative implementation since the user's Stripe environment requires v2.
-  - *Why:* Stripe is deprecating v1 for newly registered platforms; v2 provides superior configuration granularity for connected accounts acting as merchants.
-- **Decision 2: Direct Charges with On-Account Pre-Authorization Holds:**
-  - *Chosen Approach:* Direct charges executed under `{ stripeAccount: hostConnectedAccountId }`.
-  - *Why:* Guarantees Nurses Pillow remains 100% non-custodial, as payment obligations and refunds are handled on the host's merchant account while deducting the 5% platform fee.
-- **Decision 3: Complete Removal of Mock/Synthetic Payment Intent IDs:**
-  - *Chosen Approach:* All payment intents are generated directly via Stripe's API. If credentials or account configuration are incomplete, informative diagnostic errors are returned rather than masking issues with fake `pi_sandbox_...` strings.
+### A. Edge Middleware, RBAC & Account Suspension Guards
+- **Un-Gated Route Namespaces**: Unlock `/nurse/dashboard/*`, `/host/dashboard/*`, `/host/earnings/*`, `/messages/*`, `/support/*`, `/reviews/*`, `/admin/analytics/*`, `/admin/fees/*`, `/admin/promos/*`, `/admin/moderation/*`.
+- **Account Suspension Enforcement**: Query `users.is_suspended`. If `true`, intercept request and return `403 Forbidden` with a locked account modal notice. Admin suspension sets listings `is_published = false`, cancels uncaptured booking holds, and fires `account_suspended` email.
+- **Staging Protection**: HTTP Basic Authentication (`STAGING_USER` / `STAGING_PASSWORD`) and anti-crawler headers (`X-Robots-Tag: noindex, nofollow, noarchive, nosnippet, noimageindex`).
+
+### B. Database Schema Extensions (Milestone 2 + Phase 2 B2B Readiness)
+- Alter `users` table: `avatar_gcs_key`, `is_suspended`, `suspension_reason`, `suspended_at`, `marketing_opt_in`, `referral_code`, `referred_by_user_id`, `organization_id`.
+- Phase 2 readiness tables: `organizations`, `clinician_matching_profiles`, `roommate_matching_profiles`, `listing_gap_rules`.
+- Operational tables: `calendar_blocks`, `stay_extensions`, `saved_listings`, `user_blocks`, `message_threads`, `messages`, `reviews`, `safety_reports`, `support_tickets`, `support_ticket_messages`, `platform_settings`, `fee_change_logs`, `promo_codes`, `promo_code_redemptions`, `notification_templates`, `in_app_notifications`, `user_fcm_tokens`, `search_demand_logs`.
+- Alter `bookings` table: `promo_code_id`, `discount_amount`, `arrival_instructions`, `payout_held`, `postmark_last_message_id`, `postmark_delivered_at`.
+
+### C. Google Cloud Storage (GCS) Asset Service
+- 4 storage partitions: `listings/`, `avatars/`, `support/` (15-min signed read URLs), and `verifications/` (purged immediately upon admin approval).
+- Endpoints: `POST /api/storage/signed-upload-url` ($\le 10\text{MB}$ validation) and `GET /api/storage/signed-read-url`.
+- Includes reliable local filesystem proxy fallback for preview environments.
+
+### D. Traveler / Nurse Portal Features
+- **Stay Management (`GET /api/nurse/stays`)**: Privacy gating (full address & lockbox codes visible only for `accepted`, `paid`, or `active` bookings). 4-step status indicator: `Requested` $\rightarrow$ `Accepted` $\rightarrow$ `Paid` $\rightarrow$ `Upcoming`.
+- **30-Day Stay Extensions**: Prorated daily rent calculation ($\text{Monthly} / 30 \times \text{Days}$), Stripe manual authorization hold, host decision workflow (`POST /api/host/extensions/:extensionId/decide`).
+- **Saved Pillows**: Bookmark favorite accommodations with live hospital commute distances.
+- **Verification Center**: Phone verification, biometric verification, and professional credential status with `document_purged = true` security banner.
+- **Receipts & Invoices**: Itemized PDF receipts and "Book Again" pre-filled checkout.
+
+### E. Host Operations & Financial Portal
+- **Dashboard Summary**: Occupancy %, pending booking requests, pending extensions, 7-day arrivals, and unread messages.
+- **Multi-Room Calendar**: Independent room-by-room calendar blocks and seasonal rate overrides.
+- **Guest Roster**: Verified Trust Breakdown Cards and one-click arrival instructions editor.
+- **Stripe Connect Express Earnings**: Real-time breakdown of Gross Earnings, Platform Fee Deducted (default 5%), and Net Host Payout (~95%), with payout hold flags.
+
+### F. In-App Messaging & Offline Email Digests
+- Text-only conversation threads, read receipts, and user block security checks (`403 Forbidden`).
+- 5-minute unread message background worker dispatching Postmark email digests.
+
+### G. Notification Engine & 13 Event Keys
+- Unified `NotificationDispatcher` supporting dynamic templates, variable interpolation, and multi-channel delivery across In-App, Push (FCM), and Email (Postmark).
+- 13 Event Keys: `move_in_reminder`, `arrival_instructions`, `new_message`, `extension_requested`, `extension_approved`, `extension_declined`, `refund_processed`, `payout_sent`, `payout_on_hold`, `review_request`, `support_ticket_update`, `account_suspended`, `fee_change_notice`.
+
+### H. Trust, Two-Way Reviews & Support Desk
+- Completed-stay reviews eligible only after checkout date; symmetrical 1–5 star ratings and reviews.
+- Safety incident reporting and mutual user blocking.
+- 7-category support ticket desk with ticket lifecycles and admin replies.
+
+### I. Super-Admin Portal: Dynamic Fee Slider & Promo Engine
+- Dynamic host fee slider (0.00% to 15.00% strict platform cap) with live payout impact simulation on a $2,000 reservation.
+- Promo code generator and checkout validation endpoint (`/api/checkout/validate-promo`).
+
+### J. Webhooks & Background Cron Jobs
+- Stripe webhooks: `payout.paid`, `payout.failed`, `charge.dispute.created`, `charge.refunded`.
+- Postmark webhooks: `Delivery`, `Bounce`, `SpamComplaint`.
+- Cron jobs: Daily 09:00 move-in reminders, Daily 12:00 stay completion prompts, Hourly booking expiry cleanup, and 5-minute unread message digests.
 
 ---
 
-## 4. Implementation Steps & Execution Sequence
+## 5. Implementation Steps & Execution Plan
 
-1. **Stripe Accounts v2 Auto-Provisioning (`server.ts`):**
-   - Update `createHostStripeAccount` to invoke `stripe.v2.core.accounts.create` with `configuration: { merchant: {} }` and `dashboard: 'express'`.
-   - Implement `/api/stripe/connect/account-link` using `stripe.v2.core.accountLinks.create` with `use_case: { type: 'account_onboarding', account_onboarding: { configurations: ['merchant'], refresh_url, return_url } }`.
-   - Persist genuine `acct_...` IDs in PostgreSQL `users.stripe_connected_account_id`.
-
-2. **Refactor Direct Charge Pre-Auth Creation (`server.ts`):**
-   - In `/api/checkout/create-booking-request`, verify that the listing host has an authentic connected account.
-   - Execute `stripe.paymentIntents.create` with `capture_method: 'manual'`, `application_fee_amount`, and `{ stripeAccount: hostConnectedAccountId }`.
-   - Remove fake fallback string generators (`pi_sandbox_...`).
-
-3. **Stripe Capture and Cancellation Handlers:**
-   - In `/api/stripe/payment-intent/:id/capture` and `/api/bookings/:id/accept`:
-     - Retrieve host account ID and invoke `stripe.paymentIntents.capture(id, {}, { stripeAccount: hostConnectedAccountId })`.
-   - In `/api/stripe/payment-intent/:id/cancel` and `/api/bookings/:id/decline`:
-     - Retrieve host account ID and invoke `stripe.paymentIntents.cancel(id, {}, { stripeAccount: hostConnectedAccountId })`.
-
-4. **Frontend Integration (`src/components/ItemizedCheckoutModal.tsx` & `src/components/HostPortalView.tsx`):**
-   - Remove hardcoded `'acct_1NC_DukeHost_Express'` placeholder.
-   - In `HostPortalView.tsx`, wire the "Stripe Payouts / Express Dashboard" action to invoke `/api/stripe/connect/account-link`.
-
-5. **Verification & Testing:**
-   - Run integration tests for v2 account provisioning, manual pre-authorization holds, and capture/cancel flows.
-   - Verify with `compile_applet` and `lint_applet`.
+1. **Step 1: Database Migration**:
+   - Run `server/migrations/milestone2.sql` to provision all tables including `search_demand_logs`, analytics indexes, and platform settings.
+2. **Step 2: Backend Analytics & Operational Services**:
+   - Implement `GET /api/admin/analytics` computing GBV, platform revenue, conversion rates, and zero-inventory demand reports.
+   - Implement stay extension workflows, host calendar endpoints, messaging, and notification dispatcher.
+3. **Step 3: Frontend Views & Navigation Integration**:
+   - Un-gate RBAC routing in `src/App.tsx` and add dedicated "Messages" tab.
+   - Enhance the Admin Portal with the complete **Marketplace Analytics & Zero-Inventory Intelligence Dashboard** (KPI strip, date/territory filters, trend charts, and demand tables).
+   - Integrate Nurse Stay Management, Host Operations, Messaging Center, and Support Desk.
+4. **Step 4: Quality Verification & Testing**:
+   - Verify financial and analytics calculation tests, type checking (`tsc --noEmit`), and full application build.

@@ -62,19 +62,56 @@ export const SearchListingsView: React.FC<SearchListingsViewProps> = React.memo(
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [hospitalSearchQuery, setHospitalSearchQuery] = useState('');
   const [commuteBuffer, setCommuteBuffer] = useState<number>(initialRadius);
-  const isInitialCustom = !['4', '8', '13', '26'].includes(initialDuration);
-  const [selectedDuration, setSelectedDuration] = useState(isInitialCustom ? 'custom' : initialDuration);
-  const [customDuration, setCustomDuration] = useState<number>(isInitialCustom ? parseInt(initialDuration) : 1);
+  const isInitialPreset = ['4', '8', '13', '26'].includes(initialDuration);
+  const parsedInitDur = parseInt(initialDuration, 10);
+  const [selectedDuration, setSelectedDuration] = useState(isInitialPreset ? initialDuration : 'custom');
+  const [customDuration, setCustomDuration] = useState<number>(() => {
+    if (!isNaN(parsedInitDur) && parsedInitDur > 0) return parsedInitDur;
+    if (initialCheckInDate && initialCheckOutDate) {
+      const [y1, m1, d1] = initialCheckInDate.split('-').map(Number);
+      const [y2, m2, d2] = initialCheckOutDate.split('-').map(Number);
+      const diff = Math.round((new Date(y2, m2 - 1, d2).getTime() - new Date(y1, m1 - 1, d1).getTime()) / (1000 * 60 * 60 * 24));
+      if (diff > 0) return Math.max(1, Math.round(diff / 7));
+    }
+    return 13;
+  });
   const [earliestCheckIn, setEarliestCheckIn] = useState(initialCheckInDate || '2026-10-05');
   const [latestCheckOut, setLatestCheckOut] = useState(
     initialCheckOutDate || '2027-01-04'
   );
+  const [blackoutBlocks, setBlackoutBlocks] = useState<any[]>([]);
 
   // Sync dates when props change (e.g. user goes back to find housing and changes search params)
   useEffect(() => {
     if (initialCheckInDate) setEarliestCheckIn(initialCheckInDate);
     if (initialCheckOutDate) setLatestCheckOut(initialCheckOutDate);
-  }, [initialCheckInDate, initialCheckOutDate]);
+    if (initialDuration) {
+      const p = parseInt(initialDuration, 10);
+      if (['4', '8', '13', '26'].includes(initialDuration)) {
+        setSelectedDuration(initialDuration);
+      } else if (!isNaN(p) && p > 0) {
+        setSelectedDuration('custom');
+        setCustomDuration(p);
+      }
+    }
+  }, [initialCheckInDate, initialCheckOutDate, initialDuration]);
+
+  // Safe display duration label preventing any NaN wks display
+  const durationSummaryLabel = useMemo(() => {
+    if (earliestCheckIn && latestCheckOut) {
+      const dur = calculateAssignmentDuration(earliestCheckIn, latestCheckOut);
+      if (dur.weeks > 0 && dur.days % 7 === 0) return `${dur.weeks} wks`;
+      if (dur.weeks > 0) return `${dur.weeks}w ${dur.days % 7}d`;
+      if (dur.days > 0) return `${dur.days} nights`;
+    }
+    if (['4', '8', '13', '26'].includes(selectedDuration)) {
+      return `${selectedDuration} wks`;
+    }
+    if (typeof customDuration === 'number' && !isNaN(customDuration) && customDuration > 0) {
+      return `${customDuration} wks`;
+    }
+    return '13 wks';
+  }, [earliestCheckIn, latestCheckOut, selectedDuration, customDuration]);
   const [isDateRangeModalOpen, setIsDateRangeModalOpen] = useState(false);
   const [activeDetailListing, setActiveDetailListing] = useState<HousingListing | null>(null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
@@ -161,8 +198,20 @@ useBodyScrollLock(isGsaModalOpen);
     filterContractFlex,
   ]);
 
-  // Initial simulated load for realistic clinical data fetching feedback
+  // Initial simulated load for realistic clinical data fetching feedback and database sync
+  const [listingsVersion, setListingsVersion] = useState(0);
   useEffect(() => {
+    Promise.all([
+      db.fetchListings(),
+      db.fetchBookings(),
+      db.fetchAllAvailabilityBlocks(),
+    ]).then(([_, __, blocks]) => {
+      if (Array.isArray(blocks)) {
+        setBlackoutBlocks(blocks);
+      }
+      setListingsVersion(v => v + 1);
+    }).catch(console.error);
+
     const timer = setTimeout(() => {
       setInternalLoading(false);
     }, 550);
@@ -190,6 +239,10 @@ useBodyScrollLock(isGsaModalOpen);
 
   const triggerLiveQueryRefresh = () => {
     setInternalLoading(true);
+    db.fetchAllAvailabilityBlocks().then(blocks => {
+      if (Array.isArray(blocks)) setBlackoutBlocks(blocks);
+      setListingsVersion(v => v + 1);
+    }).catch(console.error);
     setTimeout(() => {
       setInternalLoading(false);
     }, 600);
@@ -256,14 +309,19 @@ useBodyScrollLock(isGsaModalOpen);
     const dbListings = db.getListings() || [];
     let list = dbListings;
 
-    // ⚡ Bolt Performance Optimization: Single-pass early return filtering
-    // Replaced chained .filter() arrays (O(M*N)) with a single loop (O(N))
+    // Single-pass early return filtering
     const targetWeeks = selectedDuration === 'custom' ? (customDuration || 13) : parseInt(selectedDuration, 10);
 
     const filtered = [];
     for (let i = 0; i < list.length; i++) {
       const l = list[i];
-      // 1. Quick chip filter
+
+      // 0. Listing Visibility Gating (Exclude unpublished or unlisted properties)
+      if (l.is_published === false || (l as any).status === 'unlisted' || (l as any).status === 'draft') {
+        continue;
+      }
+
+      // 1. Space type chip filter
       const typeLower = l.propertyType?.toLowerCase() || '';
       if (activeFilterChip === 'entire' && !(typeLower.includes('entire') || typeLower.includes('condo'))) continue;
       if (activeFilterChip === 'private' && !(typeLower.includes('room') || typeLower.includes('suite') || typeLower.includes('studio'))) continue;
@@ -293,8 +351,8 @@ useBodyScrollLock(isGsaModalOpen);
         if (commute.distanceMiles > commuteBuffer) continue;
       }
 
-      // 3. Assignment Duration
-      if (targetWeeks) {
+      // 3. Assignment Duration Bounds
+      if (targetWeeks && !isNaN(targetWeeks)) {
         const minWeeks = l.minWeeks || ((typeLower.includes('entire') || typeLower.includes('condo')) ? 8 : 4);
         const maxWeeks = l.maxWeeks || 52;
         if (targetWeeks < minWeeks || targetWeeks > maxWeeks) continue;
@@ -311,14 +369,50 @@ useBodyScrollLock(isGsaModalOpen);
       if (filterPetFriendly && !l.amenities?.petFriendly) continue;
       if (filterContractFlex && !l.contractFlexProtection) continue;
 
+      // 5. Strictly Exclude Conflicting Blackout Dates & Booking Overlaps
+      if (earliestCheckIn && latestCheckOut) {
+        // 5a. Blackout Dates / Availability Blocks Check
+        let hasBlackoutConflict = false;
+        for (let k = 0; k < blackoutBlocks.length; k++) {
+          const blk = blackoutBlocks[k];
+          if (blk.listing_id !== l.id || !blk.is_blocked) continue;
+          const bStart = blk.start_date;
+          const bEnd = blk.end_date;
+          if (!bStart || !bEnd) continue;
+          // Interval overlap: [bStart, bEnd) overlaps with [earliestCheckIn, latestCheckOut)
+          if (bStart < latestCheckOut && bEnd > earliestCheckIn) {
+            hasBlackoutConflict = true;
+            break;
+          }
+        }
+        if (hasBlackoutConflict) continue;
+
+        // 5b. Booking Conflicts Check: strictly exclude overlapping active bookings
+        const bookings = db.getBookings() || [];
+        let isBooked = false;
+        for (let b = 0; b < bookings.length; b++) {
+          const booking = bookings[b];
+          const bListingId = booking.listing_id || (booking as any).listingId;
+          if (bListingId !== l.id) continue;
+          if (booking.status === 'declined' || booking.status === 'cancelled' || booking.status === 'refunded') continue;
+          const bStart = booking.start_date || (booking as any).startDate;
+          const bEnd = booking.end_date || (booking as any).endDate;
+          if (!bStart || !bEnd) continue;
+
+          if (bStart < latestCheckOut && bEnd > earliestCheckIn) {
+            isBooked = true;
+            break;
+          }
+        }
+        if (isBooked) continue;
+      }
+
       filtered.push(l); // Passed all active filters
     }
     list = filtered;
 
     // Sort listings
     if (sortOption === 'closest') {
-      // ⚡ Bolt Performance Optimization: Map distance recalculations
-      // Replaced redundant nested calculateCommuteDuration loop O(N log N) with a Schwartzian transform
       list = list.map(item => ({ item, dist: calculateCommuteDuration(item, selectedHospital).driveMinutes }))
                  .sort((a, b) => a.dist - b.dist)
                  .map(({ item }) => item);
@@ -345,6 +439,10 @@ useBodyScrollLock(isGsaModalOpen);
     selectedDuration,
     customDuration,
     selectedHospital,
+    earliestCheckIn,
+    latestCheckOut,
+    listingsVersion,
+    blackoutBlocks,
   ]);
 
   const selectedMapListing = useMemo(() => {
@@ -546,7 +644,7 @@ useBodyScrollLock(isGsaModalOpen);
                 calendar_today
               </span>
               <span>
-                {formatDateFriendly(earliestCheckIn)} · {selectedDuration === 'custom' ? `${customDuration} wks` : selectedDuration === 'customDates' ? 'Custom Dates' : `${selectedDuration} wks`} · {commuteBuffer} mi
+                {formatDateFriendly(earliestCheckIn)} · {durationSummaryLabel} · {commuteBuffer} mi
               </span>
               <span
                 className={`material-symbols-outlined text-[16px] transition-transform duration-200 ${
@@ -881,22 +979,19 @@ useBodyScrollLock(isGsaModalOpen);
           <div className="flex items-center justify-between gap-2 overflow-x-auto pt-1 pb-0.5 custom-scrollbar text-xs">
             <div className="flex items-center gap-1.5 shrink-0">
               {[
-                { id: 'all', label: 'All' },
-                { id: 'entire', label: 'Entire home' },
+                { id: 'all', label: 'All Sanctuaries' },
+                { id: 'entire', label: 'Entire property' },
                 { id: 'private', label: 'Private suite' },
-                { id: 'blackout', label: 'Blackout curtains' },
-                { id: 'laundry', label: 'In-unit washer' },
-                { id: 'parking', label: 'Reserved parking' },
               ].map((chip) => {
                 const isSelected = activeFilterChip === chip.id;
                 return (
                   <button
                     key={chip.id}
                     type="button"
-                    onClick={() => setActiveFilterChip(chip.id as 'all' | 'entire' | 'private' | 'blackout' | 'laundry' | 'parking')}
-                    className={`px-3 py-1 rounded-full whitespace-nowrap font-medium text-xs transition-colors cursor-pointer ${
+                    onClick={() => setActiveFilterChip(chip.id as 'all' | 'entire' | 'private')}
+                    className={`px-3 py-1.5 rounded-full whitespace-nowrap font-medium text-xs transition-colors cursor-pointer ${
                       isSelected
-                        ? 'bg-[#0B2559] text-white shadow-2xs'
+                        ? 'bg-[#0B2559] text-white shadow-xs font-semibold'
                         : 'bg-[#EFF6FB] dark:bg-[#182840] text-[#404850] dark:text-[#c0c7d1] hover:bg-[#e2edf7] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#e2edf7] dark:hover:bg-[#20324e] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#20324e]'
                     }`}
                   >
@@ -909,7 +1004,7 @@ useBodyScrollLock(isGsaModalOpen);
                 type="button"
                 id="open-full-filter-modal-button"
                 onClick={() => setIsFilterModalOpen(true)}
-                className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-[#0A6FA8] dark:text-[#3E9AD1] hover:bg-[#EFF6FB] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#EFF6FB] dark:hover:bg-[#182840] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#182840] transition-colors cursor-pointer ml-1"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold text-[#0A6FA8] dark:text-[#3E9AD1] bg-[#0A6FA8]/10 hover:bg-[#0A6FA8]/20 focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#0A6FA8] transition-colors cursor-pointer ml-1"
                 title="Open comprehensive 25-point clinical amenities checklist"
               >
                 <span className="material-symbols-outlined text-[14px]">checklist</span>

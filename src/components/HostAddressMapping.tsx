@@ -6,11 +6,12 @@ import {
   useMapsLibrary,
   useMap,
 } from"@vis.gl/react-google-maps";
-import { ACTIVE_STATES, isStateActive } from "../lib/constants/states";
+import { ACTIVE_STATES, isStateActive, getStateName } from "../lib/constants/states";
 
 interface HostAddressMappingProps {
   isNightShiftMode: boolean;
   initialAddress?: string;
+  dynamicActiveStates?: string[];
   onAddressConfirmed?: (addressData: {
     formattedAddress: string;
     lat: number;
@@ -18,6 +19,7 @@ interface HostAddressMappingProps {
     city: string;
     state: string;
     zipCode: string;
+    isExpansionWaitlist?: boolean;
     nearestHospitalDistances: {
       hospital: string;
       distanceMiles: number;
@@ -42,7 +44,8 @@ const PanToLocation: React.FC<{ coords: { lat: number; lng: number } }> = ({
 
 export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
   isNightShiftMode,
-  initialAddress ="208 S LaSalle St, Durham, NC 27705",
+  initialAddress = "208 S LaSalle St, Durham, NC 27705",
+  dynamicActiveStates,
   onAddressConfirmed,
 }) => {
   const [addressInput, setAddressInput] = useState(initialAddress);
@@ -157,34 +160,71 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
     }
   };
 
-  // Nearby hospital distance calculations relative to marker coords
-  const nearbyDistances = [
-    { hospital:"Duke University Hospital", distanceMiles: 0.8, driveMins: 3 },
-    { hospital:"UNC Medical Center", distanceMiles: 11.4, driveMins: 18 },
-    { hospital:"WakeMed Raleigh Campus", distanceMiles: 26.2, driveMins: 32 },
-  ];
+  // State determination and nearby hospital distance calculations relative to state
+  const currentState = cityState.split(",")[1]?.trim().split(" ")[0]?.toUpperCase() || "NC";
+  const isValidState = isStateActive(currentState, dynamicActiveStates);
+
+  const nearbyDistances = React.useMemo(() => {
+    switch (currentState) {
+      case 'FL':
+        return [
+          { hospital: "Orlando Health Regional Medical Center", distanceMiles: 1.1, driveMins: 4 },
+          { hospital: "AdventHealth Orlando", distanceMiles: 3.2, driveMins: 8 },
+          { hospital: "Tampa General Hospital", distanceMiles: 24.5, driveMins: 32 },
+        ];
+      case 'TX':
+        return [
+          { hospital: "Texas Medical Center (Houston)", distanceMiles: 1.2, driveMins: 4 },
+          { hospital: "Dell Seton Medical Center (Austin)", distanceMiles: 2.4, driveMins: 7 },
+          { hospital: "Baylor St. Luke's Medical Center", distanceMiles: 3.1, driveMins: 8 },
+        ];
+      case 'VA':
+        return [
+          { hospital: "VCU Medical Center (Richmond)", distanceMiles: 0.9, driveMins: 3 },
+          { hospital: "Inova Fairfax Hospital", distanceMiles: 7.8, driveMins: 13 },
+        ];
+      case 'MD':
+        return [
+          { hospital: "Johns Hopkins Hospital", distanceMiles: 0.8, driveMins: 3 },
+          { hospital: "University of Maryland Medical Center", distanceMiles: 2.1, driveMins: 6 },
+        ];
+      case 'CT':
+        return [
+          { hospital: "Yale New Haven Hospital", distanceMiles: 0.7, driveMins: 3 },
+          { hospital: "Hartford Hospital", distanceMiles: 18.5, driveMins: 22 },
+        ];
+      case 'ND':
+        return [
+          { hospital: "Sanford Medical Center Fargo", distanceMiles: 0.9, driveMins: 3 },
+          { hospital: "Essentia Health-Fargo", distanceMiles: 2.5, driveMins: 6 },
+        ];
+      case 'KS':
+        return [
+          { hospital: "University of Kansas Medical Center", distanceMiles: 1.2, driveMins: 4 },
+          { hospital: "Saint Luke's Hospital of Kansas City", distanceMiles: 3.1, driveMins: 7 },
+        ];
+      default:
+        return [
+          { hospital: "Duke University Hospital", distanceMiles: 0.8, driveMins: 3 },
+          { hospital: "UNC Medical Center", distanceMiles: 11.4, driveMins: 18 },
+          { hospital: "WakeMed Raleigh Campus", distanceMiles: 26.2, driveMins: 32 },
+        ];
+    }
+  }, [currentState]);
 
   const handleConfirm = () => {
-    const currentState = cityState.split(",")[1]?.trim().split(" ")[0] || "NC";
-
-    if (!isStateActive(currentState)) {
-      return;
-    }
-
     setIsConfirmed(true);
     onAddressConfirmed?.({
-      formattedAddress: `${addressInput} ${unitApt ? `(${unitApt})` :""}`,
+      formattedAddress: `${addressInput} ${unitApt ? `(${unitApt})` : ""}`.trim(),
       lat: coords.lat,
       lng: coords.lng,
-      city: cityState.split(",")[0] ||"Durham",
+      city: cityState.split(",")[0] || "Durham",
       state: currentState,
-      zipCode: cityState.split("").pop() ||"27705",
+      zipCode: cityState.split(" ").pop() || "27705",
+      isExpansionWaitlist: !isValidState,
       nearestHospitalDistances: nearbyDistances,
     });
   };
-
-  const currentState = cityState.split(",")[1]?.trim().split(" ")[0] || "NC";
-  const isValidState = isStateActive(currentState);
 
   return (
     <div className="space-y-6">
@@ -273,10 +313,10 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
           </div>
         </div>
 
-        {/* Quick Demo North Carolina Presets */}
-        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[rgba(11,37,89,0.06)] dark:border-[#233550]">
+        {/* Quick Demo Presets (Active & Expansion) */}
+        <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-[rgba(11,37,89,0.06)] dark:border-[#233550]">
           <span className="text-[11px] font-semibold text-gray-400">
-            Sample Stays:
+            Sample Locations:
           </span>
           <button
             type="button"
@@ -287,19 +327,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
             }}
             className="text-[11px] font-bold text-[#005684] dark:text-[#93ccff] hover:underline cursor-pointer"
           >
-            Near Duke (0.8 mi)
-          </button>
-          <span className="text-gray-300">•</span>
-          <button
-            type="button"
-            onClick={() => {
-              setAddressInput("120 E Franklin St, Chapel Hill, NC 27514");
-              setCoords({ lat: 35.9132, lng: -79.0558 });
-              setCityState("Chapel Hill, NC 27514");
-            }}
-            className="text-[11px] font-bold text-[#005684] dark:text-[#93ccff] hover:underline cursor-pointer"
-          >
-            Near UNC (1.2 mi)
+            NC: Near Duke (0.8 mi)
           </button>
           <span className="text-gray-300">•</span>
           <button
@@ -311,7 +339,31 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
             }}
             className="text-[11px] font-bold text-[#005684] dark:text-[#93ccff] hover:underline cursor-pointer"
           >
-            Near WakeMed (0.4 mi)
+            NC: Near WakeMed (0.4 mi)
+          </button>
+          <span className="text-gray-300">•</span>
+          <button
+            type="button"
+            onClick={() => {
+              setAddressInput("52 W Underwood St, Orlando, FL 32806");
+              setCoords({ lat: 28.5255, lng: -81.3788 });
+              setCityState("Orlando, FL 32806");
+            }}
+            className="text-[11px] font-bold text-[#B9822E] dark:text-[#f8d489] hover:underline cursor-pointer"
+          >
+            FL: Orlando Health (Waitlist Demo)
+          </button>
+          <span className="text-gray-300">•</span>
+          <button
+            type="button"
+            onClick={() => {
+              setAddressInput("6565 Fannin St, Houston, TX 77030");
+              setCoords({ lat: 29.7118, lng: -95.3986 });
+              setCityState("Houston, TX 77030");
+            }}
+            className="text-[11px] font-bold text-[#B9822E] dark:text-[#f8d489] hover:underline cursor-pointer"
+          >
+            TX: Medical Center (Waitlist Demo)
           </button>
         </div>
       </div>
@@ -399,43 +451,61 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
         </div>
       </div>
 
-      {/* Error Banner */}
-      {!isValidState && (
-        <div className="mt-4 p-3 rounded-xl bg-[#F4E2DC] border border-[#A8452E]/20 text-[#A8452E] text-xs font-bold flex items-center gap-2">
-          <span className="material-symbols-outlined text-[16px]">
-            error
+      {/* Pre-Launch Expansion Banner or Active State Confirmation */}
+      {!isValidState ? (
+        <div className="mt-4 p-4 rounded-xl bg-[#FBF0D6] dark:bg-[#2a2010] border border-[#B9822E]/30 text-[#8c5d14] dark:text-[#f8d489] text-xs flex items-start gap-3 shadow-xs">
+          <span className="material-symbols-outlined text-[20px] text-[#B9822E] shrink-0 mt-0.5">
+            hourglass_top
           </span>
-          Listing creation is currently limited to NC, MD, CT, ND, and KS.
+          <div className="space-y-1">
+            <div className="font-bold text-[#6d460b] dark:text-[#fce5b2] text-[13px] flex items-center gap-2">
+              <span>Pre-Launch Expansion Waitlist: {getStateName(currentState)}</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#B9822E]/20 text-[#6d460b] dark:text-[#fce5b2]">
+                Early Access
+              </span>
+            </div>
+            <p className="text-[11px] leading-relaxed text-[#734b12] dark:text-[#f0cb79]">
+              Nurses Pillow hasn&apos;t launched in {getStateName(currentState)} yet! You can still complete your listing today to secure priority placement, and we&apos;ll save your home to our Expansion Waitlist until {getStateName(currentState)} officially opens.
+            </p>
+          </div>
         </div>
-      )}
+      ) : null}
 
       {/* Confirm Button */}
-      <div className="flex items-center justify-between pt-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
         <div className="text-xs text-gray-500">
           {isConfirmed ? (
-            <span className="text-[#195b4c] font-bold flex items-center gap-1">
+            <span className="text-[#195b4c] dark:text-[#aff0db] font-bold flex items-center gap-1">
               <span className="material-symbols-outlined text-[16px]">
                 check_circle
               </span>
-              Address and hospital distance tags locked for listing.
+              {!isValidState
+                ? `Address locked! Listing will save to ${getStateName(currentState)} Expansion Waitlist.`
+                : "Address and hospital distance tags locked for listing."}
             </span>
-          ) : ("Confirm address to generate traveler distance tags"
+          ) : !isValidState ? (
+            <span className="text-[#B9822E] dark:text-[#f8d489] text-[11px] font-medium">
+              Confirm location to reserve your priority launch spot in {getStateName(currentState)}.
+            </span>
+          ) : (
+            "Confirm address to generate traveler distance tags"
           )}
         </div>
         <button
           type="button"
           onClick={handleConfirm}
-          disabled={!isValidState}
-          className={`px-5 py-2.5 rounded-full text-white text-xs font-bold transition-all duration-200 ease-in-out shadow-xs flex items-center gap-1.5 ${
-            isValidState
-              ? "bg-[#005684] hover:bg-[#004266] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#004266] cursor-pointer"
-              : "bg-gray-300 cursor-not-allowed opacity-70"
+          className={`h-11 px-6 rounded-full text-white text-xs font-bold transition-all duration-200 ease-in-out shadow-xs inline-flex items-center justify-center gap-1.5 cursor-pointer ${
+            !isValidState
+              ? "bg-[#B9822E] hover:bg-[#9d6d23] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#B9822E]"
+              : "bg-[#005684] hover:bg-[#004266] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#004266]"
           }`}
         >
           <span className="material-symbols-outlined text-[16px]">
-            pin_drop
+            {!isValidState ? "bookmark_add" : "pin_drop"}
           </span>
-          <span>Confirm Property Location</span>
+          <span>
+            {!isValidState ? `Confirm & Save to ${currentState} Waitlist` : "Confirm Property Location"}
+          </span>
         </button>
       </div>
     </div>

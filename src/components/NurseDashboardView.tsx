@@ -36,6 +36,9 @@ interface NurseDashboardViewProps {
   onOpenSupport?: () => void;
   onGoToHostPortal?: () => void;
   onStartHostOnboarding?: () => void;
+  onOpenExtendStay?: (booking: BookingRequest) => void;
+  onOpenReview?: (booking: BookingRequest) => void;
+  onOpenMessages?: (recipientId?: string, threadTitle?: string) => void;
   currentUser?: {
     id?: string;
     role: string;
@@ -47,6 +50,7 @@ interface NurseDashboardViewProps {
   };
   verificationData?: any;
   isLoading?: boolean;
+  onSelectBooking?: (booking: BookingRequest) => void;
 }
 
 export const NurseDashboardView: React.FC<NurseDashboardViewProps> = ({
@@ -62,9 +66,13 @@ export const NurseDashboardView: React.FC<NurseDashboardViewProps> = ({
   onOpenSupport,
   onGoToHostPortal,
   onStartHostOnboarding,
+  onOpenExtendStay,
+  onOpenReview,
+  onOpenMessages,
   currentUser,
   verificationData,
   isLoading = false,
+  onSelectBooking,
 }) => {
   if (isLoading) {
     return (
@@ -381,9 +389,132 @@ export const NurseDashboardView: React.FC<NurseDashboardViewProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {filteredStays.map((booking) => (
-                <div key={booking.id}>Booking</div>
-              ))}
+              {filteredStays.map((booking) => {
+                const isApproved = booking.status === 'approved' || booking.status === 'active';
+                const isDeclined = booking.status === 'declined';
+                const isPending = !isApproved && !isDeclined;
+
+                return (
+                  <div
+                    key={booking.id}
+                    className="bg-white dark:bg-[#0B1626] rounded-2xl p-5 shadow-[0_2px_12px_rgba(11,37,89,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.3)] border border-[rgba(11,37,89,0.06)] dark:border-[#233550] flex flex-col justify-between transition-all hover:border-[#0A6FA8]/30"
+                  >
+                    <div>
+                      {/* Card Header: Title & Status */}
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-bold text-sm text-[#0B2559] dark:text-white truncate">
+                            {booking.listingTitle}
+                          </h3>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            {booking.hospitalName} {booking.unitSpecialty ? `• ${booking.unitSpecialty}` : ''}
+                          </p>
+                        </div>
+                        <span
+                          className={`px-2.5 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+                            isApproved
+                              ? 'bg-[#E1EFE9] text-[#2F6E5E]'
+                              : isDeclined
+                              ? 'bg-[#F4E2DC] text-[#A8452E]'
+                              : 'bg-[#FBF0D6] text-[#B9822E]'
+                          }`}
+                        >
+                          {isApproved ? 'Confirmed' : isDeclined ? 'Declined' : 'Pending Host'}
+                        </span>
+                      </div>
+
+                      {/* Dates & Duration */}
+                      <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 mb-3.5">
+                        <span className="material-symbols-outlined text-[16px] text-[#0A6FA8]">calendar_month</span>
+                        <span>{booking.startDate} – {booking.endDate}</span>
+                        <span className="text-gray-400">•</span>
+                        <span>{booking.durationWeeks} weeks</span>
+                      </div>
+
+                      {/* Stripe Connect Direct Charge Pre-Auth Hold Indicator */}
+                      <div className="p-3 rounded-xl bg-[#EFF6FB] dark:bg-[#0E1A2E] border border-[rgba(11,37,89,0.06)] dark:border-[#233550] mb-3.5 text-xs space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Stripe Payment Status:</span>
+                          <span className={`font-bold ${isApproved ? 'text-[#2F6E5E]' : isDeclined ? 'text-[#A8452E]' : 'text-[#0A6FA8]'}`}>
+                            {isApproved ? 'Captured • Direct Payout' : isDeclined ? 'Released • Uncharged' : 'Pre-Auth Hold Placed'}
+                          </span>
+                        </div>
+                        {booking.paymentIntentId && (
+                          <div className="flex items-center justify-between font-mono text-[11px]">
+                            <span className="text-gray-400">PaymentIntent:</span>
+                            <span className="text-gray-600 dark:text-gray-300 truncate max-w-[170px]" title={booking.paymentIntentId}>
+                              {booking.paymentIntentId}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between pt-1 border-t border-[rgba(11,37,89,0.06)] dark:border-[#233550]">
+                          <span className="text-gray-500">Total Upfront Amount:</span>
+                          <span className="font-bold tabular-nums text-[#0B2559] dark:text-white">
+                            ${Number(booking.totalInitialCharge || 0).toLocaleString()}.00
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Door PIN code when confirmed */}
+                      {isApproved && (
+                        <div className="p-2.5 rounded-xl bg-[#E1EFE9]/60 dark:bg-[#15233a] border border-[#2F6E5E]/20 text-xs text-[#2F6E5E] dark:text-[#aff0db] flex items-center justify-between mb-3.5">
+                          <span className="flex items-center gap-1.5 font-medium">
+                            <span className="material-symbols-outlined text-[16px]">key</span>
+                            Sanctuary Access Code:
+                          </span>
+                          <span className="font-mono font-bold tracking-wider">
+                            {booking.doorCode || 'PIN •••• 4821'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Action buttons row */}
+                    <div className="pt-2 flex flex-wrap items-center justify-end gap-2">
+                      {onOpenMessages && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenMessages(booking.hostId || 'host', booking.listingTitle)}
+                          className="px-3 py-1.5 rounded-full text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-[#EFF6FB] dark:hover:bg-[#182840] border border-gray-200 dark:border-gray-700 transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[15px] text-[#0A6FA8]">forum</span>
+                          <span>Message host</span>
+                        </button>
+                      )}
+
+                      {isApproved && onOpenExtendStay && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenExtendStay(booking)}
+                          className="px-3 py-1.5 rounded-full text-xs font-bold text-[#0A6FA8] dark:text-[#3E9AD1] hover:bg-[#EFF6FB] dark:hover:bg-[#182840] border border-[#0A6FA8]/40 transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[15px]">event_repeat</span>
+                          <span>Extend stay</span>
+                        </button>
+                      )}
+
+                      {isApproved && onOpenReview && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenReview(booking)}
+                          className="px-3 py-1.5 rounded-full text-xs font-bold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 border border-amber-300 dark:border-amber-700 transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[15px]">star</span>
+                          <span>Review stay</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => onSelectBooking && onSelectBooking(booking)}
+                        className="px-3.5 py-1.5 rounded-full text-xs font-bold text-white bg-[#0A6FA8] hover:bg-[#0C7EBF] transition-colors cursor-pointer shadow-xs"
+                      >
+                        View details
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

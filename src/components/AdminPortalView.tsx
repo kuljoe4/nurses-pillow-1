@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { AdminLicenseReview, BookingRequest, HousingListing } from '../types';
 import { getProfessionLabel } from '../lib/professionConstants';
+import { AdminSupplyDensityView } from './AdminSupplyDensityView';
+import { AdminAnalyticsDashboard } from './AdminAnalyticsDashboard';
 
 interface AdminPortalViewProps {
   currentUser?: any;
@@ -18,7 +20,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   bookingRequests = [],
   listings = [],
 }) => {
-  const [activeAdminTab, setActiveAdminTab] = useState<'clinicians' | 'properties' | 'bookings'>('clinicians');
+  const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'clinicians' | 'properties' | 'bookings' | 'supply_density'>('analytics');
   const [reviews, setReviews] = useState<AdminLicenseReview[]>([]);
   const [hostReviews, setHostReviews] = useState<any[]>([]);
   const [managedListings, setManagedListings] = useState<HousingListing[]>(listings);
@@ -299,12 +301,25 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
           </h1>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="bg-white dark:bg-[#0B1626] p-1.5 rounded-2xl shadow-sm border border-[rgba(11,37,89,0.08)] dark:border-[#233550] flex items-center gap-1">
+        {/* Tab Navigation (Strictly Uniform h-10 Heights & Alignments) */}
+        <div className="bg-white dark:bg-[#0B1626] p-1.5 rounded-2xl shadow-sm border border-[rgba(11,37,89,0.08)] dark:border-[#233550] flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setActiveAdminTab('analytics')}
+            className={`h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 ${
+              activeAdminTab === 'analytics'
+                ? 'bg-[#0B2559] dark:bg-[#0A6FA8] text-white shadow-xs'
+                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#182840]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">monitoring</span>
+            <span>Analytics &amp; BI</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setActiveAdminTab('clinicians')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 ${
               activeAdminTab === 'clinicians'
                 ? 'bg-[#0B2559] dark:bg-[#0A6FA8] text-white shadow-xs'
                 : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#182840]'
@@ -321,13 +336,13 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveAdminTab('properties')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 ${
               activeAdminTab === 'properties'
                 ? 'bg-[#0B2559] dark:bg-[#0A6FA8] text-white shadow-xs'
                 : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#182840]'
             }`}
           >
-            <span>Property Verification</span>
+            <span>Properties</span>
             {pendingPropertiesCount > 0 && (
               <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500 text-white font-bold tabular-nums">
                 {pendingPropertiesCount}
@@ -338,7 +353,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveAdminTab('bookings')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 ${
               activeAdminTab === 'bookings'
                 ? 'bg-[#0B2559] dark:bg-[#0A6FA8] text-white shadow-xs'
                 : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#182840]'
@@ -347,6 +362,22 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
             <span>Bookings</span>
             <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-[#0A6FA8]/20 text-[#0A6FA8] dark:text-[#3E9AD1] font-bold tabular-nums">
               {dbBookings.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveAdminTab('supply_density')}
+            className={`h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 ${
+              activeAdminTab === 'supply_density'
+                ? 'bg-[#0B2559] dark:bg-[#0A6FA8] text-white shadow-xs'
+                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#182840]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">domain_verification</span>
+            <span>States &amp; Supply</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500 text-white font-bold tabular-nums">
+              Expansion
             </span>
           </button>
         </div>
@@ -358,6 +389,14 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
           <span className="material-symbols-outlined text-[18px]">verified</span>
           <span>{actionNotice}</span>
         </div>
+      )}
+
+      {/* TAB 0: Marketplace Analytics & Business Intelligence */}
+      {activeAdminTab === 'analytics' && (
+        <AdminAnalyticsDashboard
+          isNightShiftMode={isNightShiftMode}
+          onActionNotice={setActionNotice}
+        />
       )}
 
       {/* TAB 1: Clinician License Verification Queue */}
@@ -758,6 +797,18 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
             )}
           </div>
         </div>
+      )}
+
+      {/* TAB 4: Supply & State Review (Per-State View Options & Command Center) */}
+      {activeAdminTab === 'supply_density' && (
+        <AdminSupplyDensityView
+          isNightShiftMode={isNightShiftMode}
+          onActionNotice={(msg) => {
+            setActionNotice(msg);
+            setTimeout(() => setActionNotice(null), 5000);
+          }}
+          managedListings={managedListings}
+        />
       )}
     </div>
   );

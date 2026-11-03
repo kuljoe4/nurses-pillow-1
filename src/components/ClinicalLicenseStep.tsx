@@ -1,9 +1,10 @@
-import React, {  useState, useRef , useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { VerificationFormData, VerificationStepId } from '../types';
 import { STATE_BOARDS } from '../data/mockData';
 import { VerificationStepperNav } from './VerificationStepperNav';
 import { getProfessionOptionsGroupedByCategory, HealthcareProfessionEnum } from '../lib/professionConstants';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
+import { isLicensedProfession, isCertifiedOrAllied, getCredentialConfig } from '../lib/registryLinks';
 
 interface ClinicalLicenseStepProps {
   data: VerificationFormData;
@@ -31,11 +32,18 @@ export const ClinicalLicenseStep: React.FC<ClinicalLicenseStepProps> = ({
       errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [submitError]);
+
   const [isDragging, setIsDragging] = useState(false);
   const [savedNotification, setSavedNotification] = useState<string | null>(null);
   const [localFile, setLocalFile] = useState<File | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const credConfig = useMemo(() => {
+    return getCredentialConfig(data.profession, data.issuingStateBoard);
+  }, [data.profession, data.issuingStateBoard]);
+
+  const isLicensed = useMemo(() => isLicensedProfession(data.profession), [data.profession]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -94,21 +102,34 @@ export const ClinicalLicenseStep: React.FC<ClinicalLicenseStepProps> = ({
     setIsSubmitting(true);
     setSubmitError(null);
 
-    const licenseNum = (data.licenseNumber || '').trim();
-    if (!licenseNum || licenseNum.length < 3) {
-      setSubmitError('Please enter a valid clinical license number (at least 3 characters).');
-      setIsSubmitting(false);
-      return;
-    }
-    if (!data.issuingStateBoard || !data.issuingStateBoard.trim()) {
-      setSubmitError('Please select your issuing state board.');
-      setIsSubmitting(false);
-      return;
-    }
     if (!data.profession || !data.profession.trim()) {
-      setSubmitError('Please select your healthcare profession.');
+      setSubmitError('Please select your healthcare profession category.');
       setIsSubmitting(false);
       return;
+    }
+
+    if (!data.issuingStateBoard || !data.issuingStateBoard.trim()) {
+      setSubmitError(`Please select your ${credConfig.authorityLabel.toLowerCase()}.`);
+      setIsSubmitting(false);
+      return;
+    }
+
+    const licenseNum = (data.licenseNumber || '').trim();
+
+    // Differentiate requirements between Licensed vs Certified/Allied
+    if (isLicensed) {
+      if (!licenseNum || licenseNum.length < 3) {
+        setSubmitError(`Please enter your valid ${credConfig.credentialLabel.toLowerCase()} (at least 3 characters).`);
+        setIsSubmitting(false);
+        return;
+      }
+    } else {
+      // Certified or allied professional: requires either cert # or uploaded document
+      if ((!licenseNum || licenseNum.length < 3) && !data.uploadedDocument) {
+        setSubmitError('Please provide either your registry certification number or upload your verification document.');
+        setIsSubmitting(false);
+        return;
+      }
     }
 
     try {
@@ -122,12 +143,12 @@ export const ClinicalLicenseStep: React.FC<ClinicalLicenseStepProps> = ({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          licenseNumber: licenseNum,
+          licenseNumber: licenseNum || 'DOC_VERIFIED',
           stateBoard: data.issuingStateBoard.trim(),
           profession: data.profession.trim(),
           specialty: (data.professionSpecialty || '').trim(),
-          credentialType: 'Licensed',
-          documentName: data.uploadedDocument?.name || 'document.pdf',
+          credentialType: isLicensed ? 'Licensed' : 'Certified_Allied',
+          documentName: data.uploadedDocument?.name || (licenseNum ? 'registry_verified.pdf' : 'credential.pdf'),
           email: userEmail,
         }),
       });
@@ -290,20 +311,17 @@ export const ClinicalLicenseStep: React.FC<ClinicalLicenseStepProps> = ({
                   isNightShiftMode ? 'text-[#E6ECF7]' : 'text-[#001848]'
                 }`}
               >
-                {data.professionSpecialty?.includes('CNA')
-                  ? 'Nurse Aide Registry / Certification Number'
-                  : 'License Number'}
+                <span>{credConfig.credentialLabel}</span>
+                <span className="text-xs font-normal text-gray-500 ml-1.5">
+                  {isLicensed ? '(Required)' : '(Optional if document uploaded)'}
+                </span>
               </label>
               <div className="relative">
                 <input
                   type="text"
                   value={data.licenseNumber}
                   onChange={(e) => onChange({ licenseNumber: e.target.value })}
-                  placeholder={
-                    data.professionSpecialty?.includes('CNA')
-                      ? 'e.g. NA-109482-NC or Registry ID'
-                      : 'e.g. RN-9482015-NC'
-                  }
+                  placeholder={credConfig.credentialPlaceholder}
                   className={`w-full rounded-xl px-4 py-3.5 pr-10 text-sm font-medium transition-all duration-200 ease-in-out focus:outline-none shadow-xs ${
                     isNightShiftMode
                       ? 'bg-[#15233a] text-white border border-[#233550] focus:border-[#3E9AD1]'
@@ -316,11 +334,11 @@ export const ClinicalLicenseStep: React.FC<ClinicalLicenseStepProps> = ({
                   </div>
                 )}
               </div>
-              {data.professionSpecialty?.includes('CNA') && (
-                <p className="text-[11px] text-[#0A6FA8] dark:text-[#3E9AD1] mt-1 font-medium">
-                  Verified through State Nurse Aide Registry records.
-                </p>
-              )}
+              <p className="text-[11px] text-[#0A6FA8] dark:text-[#3E9AD1] mt-1 font-medium">
+                {isLicensed
+                  ? 'Verified directly against state licensing records.'
+                  : 'Verified through official state health or aide registry.'}
+              </p>
             </div>
 
             <div>
@@ -329,9 +347,8 @@ export const ClinicalLicenseStep: React.FC<ClinicalLicenseStepProps> = ({
                   isNightShiftMode ? 'text-[#E6ECF7]' : 'text-[#001848]'
                 }`}
               >
-                {data.professionSpecialty?.includes('CNA')
-                  ? 'State Registry / Department of Health'
-                  : 'Issuing State / Board'}
+                <span>{credConfig.authorityLabel}</span>
+                <span className="text-xs font-normal text-gray-500 ml-1.5">(Required)</span>
               </label>
               <div className="relative">
                 <select
@@ -343,6 +360,9 @@ export const ClinicalLicenseStep: React.FC<ClinicalLicenseStepProps> = ({
                       : 'bg-[#f2f3ff] text-[#001848] border border-transparent focus:border-[#0a6fa8] focus:bg-white'
                   }`}
                 >
+                  <option value="" disabled className={isNightShiftMode ? 'bg-[#0E1A2E]' : 'bg-white'}>
+                    Select issuing board / state
+                  </option>
                   {STATE_BOARDS.map((board) => (
                     <option key={board} value={board} className={isNightShiftMode ? 'bg-[#0E1A2E]' : 'bg-white'}>
                       {board}
@@ -357,6 +377,22 @@ export const ClinicalLicenseStep: React.FC<ClinicalLicenseStepProps> = ({
                   <span className="material-symbols-outlined">expand_more</span>
                 </div>
               </div>
+
+              {/* Official Registry Link */}
+              <div className="mt-1.5 flex items-center gap-1.5 text-[11px]">
+                <span className="material-symbols-outlined text-[14px] text-[#0A6FA8] dark:text-[#3E9AD1]">
+                  open_in_new
+                </span>
+                <a
+                  href={credConfig.primaryRegistryLink.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-[#0A6FA8] dark:text-[#3E9AD1] hover:underline truncate"
+                  title={credConfig.primaryRegistryLink.description}
+                >
+                  Lookup on {credConfig.primaryRegistryLink.name}
+                </a>
+              </div>
             </div>
           </div>
 
@@ -367,7 +403,7 @@ export const ClinicalLicenseStep: React.FC<ClinicalLicenseStepProps> = ({
                 isNightShiftMode ? 'text-[#E6ECF7]' : 'text-[#001848]'
               }`}
             >
-              License Expiration Date
+              Credential Expiration Date
             </label>
             <div className="relative max-w-xs">
               <input
@@ -398,7 +434,16 @@ export const ClinicalLicenseStep: React.FC<ClinicalLicenseStepProps> = ({
                 isNightShiftMode ? 'text-[#E6ECF7]' : 'text-[#001848]'
               }`}
             >
-              Primary License or Nursys e-Notify Document
+              <span>
+                {isLicensed
+                  ? 'License Verification Document or Screenshot'
+                  : 'Official Certification / Registry Document'}
+              </span>
+              <span className="text-xs font-normal text-gray-500 ml-1.5">
+                {credConfig.isDocumentRequired && !data.licenseNumber
+                  ? '(Required)'
+                  : '(Optional supporting document)'}
+              </span>
             </label>
 
             {/* Drag & Drop Zone */}
@@ -442,17 +487,19 @@ export const ClinicalLicenseStep: React.FC<ClinicalLicenseStepProps> = ({
                     isNightShiftMode ? 'text-white' : 'text-[#001848]'
                   }`}
                 >
-                  Drag and drop your State Nursing License or Nursys e-Notify certificate
+                  {isLicensed
+                    ? 'Drag and drop your State License or Nursys e-Notify certificate'
+                    : 'Drag and drop your state certificate or registry document'}
                 </p>
                 <p
                   className={`text-xs max-w-md mx-auto leading-relaxed ${
                     isNightShiftMode ? 'text-[#8ea5c8]' : 'text-[#404850]'
                   }`}
                 >
-                  PDF, JPG, or PNG up to 15MB. Your sensitive data is encrypted with HIPAA-compliant standards.
+                  {credConfig.documentHelpText}
                 </p>
                 <p className="text-[11px] text-[#195b4c] dark:text-[#aff0db] font-semibold mt-2">
-                  🔒 Uploaded license documents and IDs are permanently purged post-approval. Raw license numbers remain private and hidden from hosts.
+                  🔒 Uploaded documents are permanently purged post-approval. Raw license numbers remain private and hidden from hosts.
                 </p>
               </div>
             </div>

@@ -215,6 +215,21 @@ class DatabaseService {
     return this.getListings();
   }
 
+  async fetchBookings(): Promise<DbBooking[]> {
+    try {
+      const response = await this.fetchWithRetry('/api/bookings');
+      if (response.ok) {
+        const data = await response.json().catch(() => null);
+        if (Array.isArray(data) && data.length > 0) {
+          this.bookings = data;
+        }
+      }
+    } catch (error) {
+      console.warn('[DatabaseService] Network error fetching bookings from PostgreSQL API:', error);
+    }
+    return this.getBookings();
+  }
+
   async fetchAuditLogs(): Promise<DbAuditLog[]> {
     try {
       const token = localStorage.getItem('np_auth_token') || sessionStorage.getItem('np_auth_token');
@@ -473,7 +488,32 @@ class DatabaseService {
     });
   }
 
-  async fetchAvailabilityBlocks(listingId: string): Promise<any[]> {
+  private availabilityBlocks: any[] = [];
+
+  async fetchAllAvailabilityBlocks(): Promise<any[]> {
+    try {
+      const response = await this.fetchWithRetry('/api/availability-blocks');
+      if (response.ok) {
+        const data = await response.json().catch(() => null);
+        if (Array.isArray(data)) {
+          this.availabilityBlocks = data;
+          return data;
+        }
+      }
+    } catch (error) {
+      console.warn('[DatabaseService] Network error fetching all availability blocks:', error);
+    }
+    return this.availabilityBlocks;
+  }
+
+  getAvailabilityBlocks(): any[] {
+    return this.availabilityBlocks;
+  }
+
+  async fetchAvailabilityBlocks(listingId?: string): Promise<any[]> {
+    if (!listingId) {
+      return this.fetchAllAvailabilityBlocks();
+    }
     try {
       const response = await this.fetchWithRetry(`/api/listings/${listingId}/availability`);
       if (response.ok) {

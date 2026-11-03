@@ -20,6 +20,9 @@ interface ItemizedCheckoutModalProps {
   };
   verificationData?: any;
   onGoToVerification?: () => void;
+  onSwitchRole?: (role?: any) => void | Promise<void>;
+  onSetupClinician?: () => void;
+  onOpenAuth?: (mode?: 'signin' | 'signup') => void;
   checkInDate: string;
   checkOutDate: string;
 }
@@ -33,6 +36,7 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
   currentUser,
   verificationData,
   onGoToVerification,
+  onOpenAuth,
   checkInDate,
   checkOutDate,
 }) => {
@@ -47,7 +51,9 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
   const [cardZip, setCardZip] = useState('27710');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [lastSplitTxn, setLastSplitTxn] = useState<StripeSplitTransaction | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [confirmedBooking, setConfirmedBooking] = useState<BookingRequest | null>(null);
+  const [lastPaymentIntentId, setLastPaymentIntentId] = useState<string | null>(null);
   const [showCancellationDetails, setShowCancellationDetails] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
 
@@ -85,9 +91,41 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
     return acc + (selectedExtraOptions[opt.name] ? Number(opt.price) : 0);
   }, 0);
 
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountAmount: number } | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+
   const travelerFee = 0;
-  // Upfront charge includes prorated accommodation, cleaning fee, and pet fee.
-  const totalInitialCharge = accommodationTotal + cleaningFee + petFee + parkingFee + extraOptionsFee + travelerFee;
+  // Upfront charge includes prorated accommodation, cleaning fee, and pet fee minus any promo discount.
+  const baseSubtotal = accommodationTotal + cleaningFee + petFee + parkingFee + extraOptionsFee + travelerFee;
+  const promoDiscount = appliedPromo ? appliedPromo.discountAmount : 0;
+  const totalInitialCharge = Math.max(0, baseSubtotal - promoDiscount);
+
+  const handleApplyPromo = async () => {
+    if (!promoCodeInput.trim() || isValidatingPromo) return;
+    setIsValidatingPromo(true);
+    setPromoError(null);
+    try {
+      const res = await fetch('/api/checkout/validate-promo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: promoCodeInput.trim(), subtotal: baseSubtotal }),
+      });
+      const data = await res.json();
+      if (res.ok && data.valid) {
+        setAppliedPromo({ code: data.code, discountAmount: data.discountAmount });
+        setPromoError(null);
+      } else {
+        setPromoError(data.error || 'Invalid or expired promo code');
+        setAppliedPromo(null);
+      }
+    } catch {
+      setPromoError('Network error checking promo code');
+    } finally {
+      setIsValidatingPromo(false);
+    }
+  };
 
   // Effective host fee lookup (checks for custom fee override vs global rate)
   const hostEffective = stripeConnect.getEffectiveFeeRate(listing.id || listing.title);
@@ -130,23 +168,58 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
       setIsSubmitting(false);
       return;
     }
+    if (!currentUser || currentUser.role === 'guest') {
+      setCheckoutError("You must be signed in to request a booking sanctuary.");
+      setIsSubmitting(false);
+      return;
+    }
+    if (!verificationData || verificationData.licenseStatus !== 'verified') {
+      setCheckoutError("Clinical verification required. Please complete your clinical license and identity verification before booking.");
+      setIsSubmitting(false);
+      return;
+    }
     setIsSubmitting(true);
+    setCheckoutError(null);
 
     try {
-      // Execute Stripe Connect split payment in sandbox mode with prorated rent and extra options
-      const splitTxn = await stripeConnect.processSplitPayment({
-        monthlyRent: accommodationTotal + extraOptionsFee,
-        listingId: listing.id || (listing as any).listing_id || 'unknown',
-        cleaningFee,
-        securityDeposit,
-        cardNumber,
-        hostConnectedAccountId: hostOverride?.connectedAccountId || 'acct_1NC_DukeHost_Express',
-        customFeeRateOrPercent: finalFeeRate,
+      const token = typeof window !== 'undefined'
+        ? (localStorage.getItem('np_auth_token') || sessionStorage.getItem('np_auth_token'))
+        : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      // Execute live non-custodial Stripe Connect direct charge pre-auth hold
+      const res = await fetch('/api/checkout/create-booking-request', {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify({
+          listing_id: listing.id || (listing as any).listing_id || 'nc-duke-condo',
+          start_date: checkInDate,
+          end_date: checkOutDate,
+          traveler_name: currentUser?.name || 'Sarah Jenkins, RN',
+          traveler_user_id: currentUser?.id,
+          card_number: cardNumber,
+          card_expiry: cardExpiry,
+          card_cvc: cardCvc,
+          card_zip: cardZip,
+          special_requests: specialNote,
+          promo_code: appliedPromo?.code || null,
+        }),
       });
-      setLastSplitTxn(splitTxn);
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to place pre-authorization hold on Stripe');
+      }
+
+      const paymentIntentId = data.paymentIntentId || data.booking?.paymentIntentId;
+      setLastPaymentIntentId(paymentIntentId);
 
       const newBooking: BookingRequest = {
-        id: `np-book-${Date.now()}`,
+        id: data.booking?.id || `bk-${Date.now()}`,
         clinicianName: currentUser?.name || 'Travel Clinician',
         clinicianTitle: verificationData?.professionSpecialty || 'BSN, RN (Travel Specialist)',
         clinicianAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=256&q=80',
@@ -159,7 +232,7 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
         endDate: checkOutDate,
         durationWeeks: Math.round(daysCount / 7),
         monthlyRent,
-        securityDeposit,
+        securityDeposit: 0,
         cleaningFee,
         petFee,
         parkingFee,
@@ -167,20 +240,22 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
         selectedExtraOptions: (listing.extraOptions || []).filter(o => selectedExtraOptions[o.name]),
         travelerFee,
         totalInitialCharge,
-        hostNetPayout: splitPreview.hostNetPayout,
+        hostNetPayout: data.booking?.hostNetPayout || splitPreview.hostNetPayout,
         status: 'pending_host_approval',
         submittedAt: 'Just now',
         deadlineHoursRemaining: 24,
         specialRequests: specialNote,
         doorCode: '•••• 4821',
         wifiNetwork: 'Sanctuary-Clinician-5G',
-        paymentIntentId: splitTxn.paymentIntentId,
+        paymentIntentId,
       };
 
+      setConfirmedBooking(newBooking);
       setIsSuccess(true);
       onBookingSubmitted(newBooking);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Stripe Split Payment Error:', err);
+      setCheckoutError(err.message || 'Payment pre-authorization hold failed. Please check your card information.');
     } finally {
       setIsSubmitting(false);
     }
@@ -309,6 +384,40 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
                       <span className="font-bold tabular-nums text-emerald-600 dark:text-emerald-400">$0.00</span>
                     </div>
 
+                    {appliedPromo && (
+                      <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-semibold">
+                        <span className="flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[16px]">loyalty</span>
+                          <span>Promo code ({appliedPromo.code})</span>
+                        </span>
+                        <span className="font-bold tabular-nums">-${appliedPromo.discountAmount.toLocaleString()}.00</span>
+                      </div>
+                    )}
+
+                    {/* Promo Code Input Trigger */}
+                    <div className="pt-2 border-t border-[rgba(11,37,89,0.06)] dark:border-[#233550]">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={promoCodeInput}
+                          onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+                          placeholder="Promo code (e.g. WELCOME50)"
+                          className="flex-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0B1626] text-xs font-mono tracking-wider outline-none focus:border-[#0A6FA8]"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleApplyPromo}
+                          disabled={!promoCodeInput.trim() || isValidatingPromo}
+                          className="px-3.5 py-1.5 rounded-lg bg-[#0A6FA8] hover:bg-[#0C7EBF] disabled:opacity-50 text-white text-xs font-bold transition-colors cursor-pointer"
+                        >
+                          {isValidatingPromo ? 'Checking...' : 'Apply'}
+                        </button>
+                      </div>
+                      {promoError && (
+                        <p className="text-[11px] text-rose-500 mt-1 font-medium">{promoError}</p>
+                      )}
+                    </div>
+
                     {/* Total Due Now */}
                     <div className="pt-3 border-t border-[rgba(11,37,89,0.1)] dark:border-[#233550]">
                       <div className="flex justify-between items-baseline">
@@ -320,7 +429,17 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
                     </div>
                   </div>
 
-                  {isCheckoutLocked && (
+                  {(!currentUser || currentUser.role === 'guest') ? (
+                    <div className="mb-5 p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 flex flex-col gap-2">
+                      <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200 font-bold text-sm">
+                        <span className="material-symbols-outlined text-[18px]">account_circle</span>
+                        Sign In or Register Required
+                      </div>
+                      <p className="text-xs text-amber-700 dark:text-amber-300">
+                        Please sign in or register before submitting a booking request.
+                      </p>
+                    </div>
+                  ) : isCheckoutLocked && (
                     <div className="mb-5 p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 flex flex-col gap-2">
                       <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200 font-bold text-sm">
                         <span className="material-symbols-outlined text-[18px]">lock</span>
@@ -332,7 +451,19 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
                     </div>
                   )}
 
-                  {isCheckoutLocked ? (
+                  {(!currentUser || currentUser.role === 'guest') ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onOpenAuth?.('signin');
+                      }}
+                      className="w-full py-4 rounded-full bg-[#0A6FA8] hover:bg-[#0C7EBF] active:bg-[#095C8C] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#0A6FA8] text-white font-bold text-sm shadow-md transition-all duration-200 ease-in-out cursor-pointer flex justify-center items-center gap-2"
+                    >
+                      Sign In or Register to Book
+                      <span className="material-symbols-outlined text-[18px]">login</span>
+                    </button>
+                  ) : isCheckoutLocked ? (
                     <button
                       type="button"
                       onClick={() => {
@@ -471,6 +602,14 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
                       </label>
                     </div>
 
+                    {/* Live Stripe Error Notice */}
+                    {checkoutError && (
+                      <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/40 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2.5">
+                        <span className="material-symbols-outlined text-[18px] text-rose-600 shrink-0">error</span>
+                        <div className="leading-snug">{checkoutError}</div>
+                      </div>
+                    )}
+
                     {/* Submit CTA */}
                     <button
                       type="submit"
@@ -480,12 +619,12 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
                       {isSubmitting ? (
                         <>
                           <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
-                          <span>Processing...</span>
+                          <span>Placing Pre-Auth Hold...</span>
                         </>
                       ) : (
                         <>
                           <span className="material-symbols-outlined text-[20px]">lock</span>
-                          <span>Pay ${totalInitialCharge.toLocaleString()}</span>
+                          <span>Authorize Hold • ${totalInitialCharge.toLocaleString()}</span>
                         </>
                       )}
                     </button>
@@ -500,23 +639,35 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
               <span className="material-symbols-outlined text-[36px]">check_circle</span>
             </div>
             <h3 className="text-2xl font-bold text-[#001848] dark:text-white">
-              Booking Request Dispatched to Host Sarah!
+              Booking Pre-Authorization Hold Placed!
             </h3>
             <p className="text-xs text-[#404850] dark:text-[#c0c7d1] max-w-md mx-auto leading-relaxed">
-              Your {Math.round(daysCount / 7)}-week booking request has been securely placed into Host Sarah's approval queue. Host has <strong>24 hours</strong> to confirm.
+              Your {Math.round(daysCount / 7)}-week booking request has been securely placed into the host's approval queue. The host has <strong>24 hours</strong> to accept and capture your hold.
             </p>
 
-            <div className="p-4 rounded-2xl bg-[#eaedff]/60 dark:bg-[#15233a] max-w-md mx-auto text-left text-xs space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Host SLA Countdown:</span>
+            <div className="p-4 rounded-2xl bg-[#eaedff]/60 dark:bg-[#15233a] max-w-md mx-auto text-left text-xs space-y-2.5">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Stripe Pre-Auth Hold:</span>
+                <span className="font-mono font-bold text-[#0A6FA8] dark:text-[#3E9AD1] truncate max-w-[210px]">
+                  {confirmedBooking?.paymentIntentId || lastPaymentIntentId || 'pi_confirmed'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Stripe Connect Direct Charge:</span>
+                <span className="font-bold text-[#2F6E5E]">5% Platform Split (Non-Custodial)</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Hold Amount:</span>
+                <span className="font-bold text-[#005684] dark:text-[#7bb0cc] tabular-nums">
+                  ${totalInitialCharge.toLocaleString()}.00 (Uncaptured Hold)
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Host SLA Window:</span>
                 <span className="font-bold text-rose-600">23h 59m remaining</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Initial Auth Hold:</span>
-                <span className="font-bold text-[#005684]">${totalInitialCharge.toLocaleString()}.00 (Escrow)</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Unit Arrival Code:</span>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Sanctuary Arrival Code:</span>
                 <span className="font-bold text-[#195b4c]">PIN •••• 4821 (Unlocks on approval)</span>
               </div>
             </div>

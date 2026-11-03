@@ -97,6 +97,21 @@ const MobileParityView = React.lazy(() =>
     default: m.MobileParityView,
   })),
 );
+const MessagesView = React.lazy(() =>
+  import("./components/MessagesView").then((m) => ({
+    default: m.MessagesView,
+  })),
+);
+const ExtendStayModal = React.lazy(() =>
+  import("./components/ExtendStayModal").then((m) => ({
+    default: m.ExtendStayModal,
+  })),
+);
+const ReviewModal = React.lazy(() =>
+  import("./components/ReviewModal").then((m) => ({
+    default: m.ReviewModal,
+  })),
+);
 
 // Modals lazy-loaded on demand (prevents heavy modules like Firebase from loading during initial page render)
 const GoogleSheetsSyncModal = React.lazy(() =>
@@ -556,6 +571,10 @@ export default function App() {
   // Checkout modal state (Screen A4)
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutListing, setCheckoutListing] = useState<HousingListing | null>(null);
+
+  // Stay Extension & Review Modals
+  const [extendStayBooking, setExtendStayBooking] = useState<BookingRequest | null>(null);
+  const [reviewStayBooking, setReviewStayBooking] = useState<BookingRequest | null>(null);
 
   // Dedicated search params state (Screen A2)
   const [searchParamsState, setSearchParamsState] = useState({
@@ -1319,12 +1338,6 @@ export default function App() {
         savedListingIds={savedListingIds}
         onToggleSave={handleToggleSaveListing}
         selectedHospital={searchParamsState.hospital || 'Duke University Hospital'}
-        currentUser={currentUser}
-        onGoToHostPortal={() => {
-          setPublicHostId(null);
-          window.history.pushState({}, document.title, "/");
-          setCurrentTab('host-dashboard');
-        }}
       />
     );
   }
@@ -1358,7 +1371,11 @@ export default function App() {
       {/* Sticky Navigation Header */}
       <Header
         topBanner={
-          currentUser.role === "nurse" && activeNurseBooking ? (
+          accessNotice ? (
+            <div className="w-full bg-[#F1CF78] text-[#0B2559] px-4 py-2 text-center text-xs font-bold">
+              {accessNotice.title}: {accessNotice.message}
+            </div>
+          ) : currentUser.role === "nurse" && activeNurseBooking ? (
             <div className="bg-[#FBF0D6] dark:bg-[#20190d] border-b border-[#B9822E]/25 text-[#0B2559] dark:text-[#FBF0D6] px-3 sm:px-6 py-2 text-xs transition-colors">
               <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 min-w-0">
@@ -1408,7 +1425,7 @@ export default function App() {
                 </button>
               </div>
             </div>
-          ) : null
+          ) : undefined
         }
         currentTab={currentTab}
         currentUser={currentUser}
@@ -1433,13 +1450,6 @@ export default function App() {
           setSelectedBookingDetail(b);
           setIsBookingDetailOpen(true);
         }}
-        topBanner={
-          accessNotice ? (
-            <div className="w-full bg-[#F1CF78] text-[#0B2559] px-4 py-2 text-center text-xs font-bold">
-              {accessNotice.title}: {accessNotice.message}
-            </div>
-          ) : undefined
-        }
       />
 
       {/* Main Content Area - Seamlessly flush against sticky header */}
@@ -1479,6 +1489,9 @@ export default function App() {
                 onOpenSupport={() => setIsSupportOpen(true)}
                 onGoToHostPortal={() => handleNavigateTab("host-dashboard")}
                 onStartHostOnboarding={() => handleNavigateTab("host-onboarding")}
+                onOpenExtendStay={(b) => setExtendStayBooking(b)}
+                onOpenReview={(b) => setReviewStayBooking(b)}
+                onOpenMessages={() => handleNavigateTab("messages")}
                 savedListingIds={savedListingIds}
                 onToggleSave={handleToggleSaveListing}
                 allListings={appData.listings}
@@ -1535,6 +1548,7 @@ export default function App() {
                 onApproveBooking={handleApproveBooking}
                 onDeclineBooking={handleDeclineBooking}
                 onGoToHousing={() => handleNavigateTab("find-housing")}
+                onOpenMessages={() => handleNavigateTab("messages")}
                 initialTab={currentTab === "host-onboarding" ? "onboarding" : "dashboard"}
                 isNurseVerified={currentUser.isNurseVerified || currentUser.role === "nurse" || currentUser.role === "dual" || verificationData.licenseStatus === "verified"}
                 verificationStatus={verificationData.licenseStatus}
@@ -1584,6 +1598,15 @@ export default function App() {
                 </div>
               </div>
             ))}
+
+          {/* In-App Direct Messages View: Dedicated tab for Clinicians & Hosts */}
+          {currentTab === "messages" && (
+            <MessagesView
+              isNightShiftMode={isNightShiftMode}
+              currentUser={currentUser}
+              onOpenSupport={() => setIsSupportOpen(true)}
+            />
+          )}
 
           {/* Operations Hub (Admin): Restricted to super_admin */}
           {currentTab === "admin-portal" &&
@@ -1675,7 +1698,6 @@ export default function App() {
                     handleNavigateTab("email-verification")
                   }
                   onOpenTwilioOtp={() => handleNavigateTab("phone-verification")}
-                  onExit={() => handleNavigateTab(currentUser.role === 'host' ? 'host-dashboard' : 'find-housing')}
                 />
               )}
               {verificationStep === 3 && (
@@ -1686,7 +1708,6 @@ export default function App() {
                   onSelectStep={(step) => setVerificationStep(step)}
                   isNightShiftMode={isNightShiftMode}
                   onOpenSuccessModal={() => setIsSuccessModalOpen(true)}
-                  onExit={() => handleNavigateTab(currentUser.role === 'host' ? 'host-dashboard' : 'find-housing')}
                 />
               )}
             </>

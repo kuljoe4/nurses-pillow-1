@@ -7,6 +7,7 @@ export type NavigationTab =
   | 'nurse-dashboard'
   | 'host-dashboard'
   | 'host-onboarding'
+  | 'messages'
   | 'admin-portal'
   | 'how-it-works'
   | 'for-hosts'
@@ -53,6 +54,9 @@ export interface BookingRequest {
   doorCode?: string;
   wifiNetwork?: string;
   paymentIntentId?: string;
+  hostId?: string;
+  clinicianId?: string;
+  traveler_user_id?: string;
 }
 
 export interface AdminLicenseReview {

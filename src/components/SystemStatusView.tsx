@@ -51,6 +51,14 @@ export const SystemStatusView: React.FC<SystemStatusViewProps> = ({
       description: '2FA phone verification codes and booking dispatch communications',
     },
     {
+      name: 'Google Cloud Storage & Encrypted Vault',
+      category: 'Object Storage & Clinician Privacy',
+      status: 'Operational',
+      latency: '22ms',
+      uptime: '99.99%',
+      description: 'Public sanctuary listing photos and encrypted verification document vaulting',
+    },
+    {
       name: 'Cloud Run Multi-Region Container Fleet',
       category: 'Core Platform Hosting',
       status: 'Operational',

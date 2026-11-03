@@ -175,7 +175,6 @@ export const IdentityStep: React.FC<IdentityStepProps> = ({
         data={data}
         onSelectStep={onSelectStep}
         isNightShiftMode={isNightShiftMode}
-        onExit={onExit}
       />
 
       {/* Main Card */}

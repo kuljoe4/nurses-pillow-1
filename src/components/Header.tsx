@@ -240,6 +240,10 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="material-symbols-outlined text-[17px]">space_dashboard</span>
                 <span>My Dashboard</span>
               </button>
+              <button onClick={() => onSelectTab('messages')} className={`px-3.5 py-2 rounded-xl text-xs xl:text-sm font-semibold transition-colors cursor-pointer flex items-center gap-1.5 ${currentTab === 'messages' ? (isNightShiftMode ? 'bg-[#182840] text-[#93ccff] font-bold' : 'bg-[#eaedff] text-[#005684] font-bold') : (isNightShiftMode ? 'text-[#c0c7d1] hover:text-white hover:bg-white/5' : 'text-[#404850] hover:text-[#001848] hover:bg-gray-100')}`}>
+                <span className="material-symbols-outlined text-[17px]">forum</span>
+                <span>Messages</span>
+              </button>
               <button onClick={() => onSelectTab('find-housing')} className={`px-3.5 py-2 rounded-xl text-xs xl:text-sm font-semibold transition-colors cursor-pointer ${currentTab === 'find-housing' ? (isNightShiftMode ? 'bg-[#182840] text-[#93ccff] font-bold' : 'bg-[#eaedff] text-[#005684] font-bold') : (isNightShiftMode ? 'text-[#c0c7d1] hover:text-white hover:bg-white/5' : 'text-[#404850] hover:text-[#001848] hover:bg-gray-100')}`}>
                 <span>Explore Stays</span>
               </button>
@@ -261,6 +265,10 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="material-symbols-outlined text-[17px]">real_estate_agent</span>
                 <span>Host Portal</span>
               </button>
+              <button onClick={() => onSelectTab('messages')} className={`px-3.5 py-2 rounded-xl text-xs xl:text-sm font-semibold transition-colors cursor-pointer flex items-center gap-1.5 ${currentTab === 'messages' ? (isNightShiftMode ? 'bg-[#182840] text-[#93ccff] font-bold' : 'bg-[#eaedff] text-[#005684] font-bold') : (isNightShiftMode ? 'text-[#c0c7d1] hover:text-white hover:bg-white/5' : 'text-[#404850] hover:text-[#001848] hover:bg-gray-100')}`}>
+                <span className="material-symbols-outlined text-[17px]">forum</span>
+                <span>Messages</span>
+              </button>
               <button onClick={() => onSelectTab('find-housing')} className={`px-3.5 py-2 rounded-xl text-xs xl:text-sm font-semibold transition-colors cursor-pointer ${currentTab === 'find-housing' ? (isNightShiftMode ? 'bg-[#182840] text-[#93ccff] font-bold' : 'bg-[#eaedff] text-[#005684] font-bold') : (isNightShiftMode ? 'text-[#c0c7d1] hover:text-white hover:bg-white/5' : 'text-[#404850] hover:text-[#001848] hover:bg-gray-100')}`}>
                 <span>Explore Stays</span>
               </button>
@@ -273,6 +281,10 @@ export const Header: React.FC<HeaderProps> = ({
               <button onClick={() => onSelectTab('host-dashboard')} className={`px-3.5 py-2 rounded-xl text-xs xl:text-sm font-semibold transition-colors cursor-pointer flex items-center gap-1.5 ${currentTab === 'host-dashboard' ? (isNightShiftMode ? 'bg-[#182840] text-[#93ccff] font-bold' : 'bg-[#eaedff] text-[#005684] font-bold') : (isNightShiftMode ? 'text-[#c0c7d1] hover:text-white hover:bg-white/5' : 'text-[#404850] hover:text-[#001848] hover:bg-gray-100')}`}>
                 <span className="material-symbols-outlined text-[17px]">real_estate_agent</span>
                 <span>My Sanctuaries</span>
+              </button>
+              <button onClick={() => onSelectTab('messages')} className={`px-3.5 py-2 rounded-xl text-xs xl:text-sm font-semibold transition-colors cursor-pointer flex items-center gap-1.5 ${currentTab === 'messages' ? (isNightShiftMode ? 'bg-[#182840] text-[#93ccff] font-bold' : 'bg-[#eaedff] text-[#005684] font-bold') : (isNightShiftMode ? 'text-[#c0c7d1] hover:text-white hover:bg-white/5' : 'text-[#404850] hover:text-[#001848] hover:bg-gray-100')}`}>
+                <span className="material-symbols-outlined text-[17px]">forum</span>
+                <span>Messages</span>
               </button>
               <button onClick={() => onSelectTab('find-housing')} className={`px-3.5 py-2 rounded-xl text-xs xl:text-sm font-semibold transition-colors cursor-pointer ${currentTab === 'find-housing' ? (isNightShiftMode ? 'bg-[#182840] text-[#93ccff] font-bold' : 'bg-[#eaedff] text-[#005684] font-bold') : (isNightShiftMode ? 'text-[#c0c7d1] hover:text-white hover:bg-white/5' : 'text-[#404850] hover:text-[#001848] hover:bg-gray-100')}`}>
                 <span>Explore Stays</span>

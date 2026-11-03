@@ -19,6 +19,7 @@ interface HostPortalViewProps {
   verificationStatus?: string;
   onGoToClinicianDashboard?: () => void;
   onStartClinicianVerification?: () => void;
+  onOpenMessages?: (recipientId?: string, threadTitle?: string) => void;
   currentUser?: {
     isHostVerified?: boolean;
     isIdVerified?: boolean;
@@ -42,10 +43,25 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
   verificationStatus,
   onGoToClinicianDashboard,
   onStartClinicianVerification,
+  onOpenMessages,
   currentUser,
 }) => {
-  const [activeHostTab, setActiveHostTab] = useState<'dashboard' | 'editor' | 'onboarding' | 'profile'>(initialTab as any);
+  const [activeHostTab, setActiveHostTab] = useState<'dashboard' | 'editor' | 'calendar' | 'onboarding' | 'profile' | 'earnings'>(initialTab as any);
   const [editorStep, setEditorStep] = useState<1 | 2 | 3>(1);
+
+  // Arrival Instructions Modal State
+  const [arrivalModalBooking, setArrivalModalBooking] = useState<BookingRequest | null>(null);
+  const [doorCodeInput, setDoorCodeInput] = useState('');
+  const [wifiSsidInput, setWifiSsidInput] = useState('');
+  const [wifiPasswordInput, setWifiPasswordInput] = useState('');
+  const [checkinGuideInput, setCheckinGuideInput] = useState('');
+  const [houseRulesInput, setHouseRulesInput] = useState('');
+  const [isSavingArrival, setIsSavingArrival] = useState(false);
+  const [arrivalSaveMsg, setArrivalSaveMsg] = useState<string | null>(null);
+
+  // Earnings State
+  const [earningsData, setEarningsData] = useState<any>(null);
+  const [isLoadingEarnings, setIsLoadingEarnings] = useState(false);
 
   const [hostFullName, setHostFullName] = useState(currentUser?.name || 'Sarah M.');
   const [hostTitleBio, setHostTitleBio] = useState('RN Host • Superhost • Former UCSF Neuro ICU RN');
@@ -99,6 +115,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
 
   const [editingListingId, setEditingListingId] = useState<string | null>(null);
   const [hostListings, setHostListings] = useState<any[]>([]);
+  const [selectedCalendarListingId, setSelectedCalendarListingId] = useState<string | null>(null);
 
   // Fetch host's listing on load to get the ID
   useEffect(() => {
@@ -120,7 +137,9 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
             const data = (res.headers.get('content-type')?.includes('application/json') ? await res.json() : {});
             if (isMounted && data.listings) {
               setHostListings(data.listings);
-              // We'll let the user choose or hit 'Create New Listing'
+              if (data.listings.length > 0 && !selectedCalendarListingId) {
+                setSelectedCalendarListingId(data.listings[0].id);
+              }
             }
 
           } else if (!res.ok) {
@@ -141,6 +160,67 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
     };
   }, [activeHostTab]);
 
+  useEffect(() => {
+    if (activeHostTab === 'earnings') {
+      const fetchEarnings = async () => {
+        setIsLoadingEarnings(true);
+        try {
+          const token = localStorage.getItem('np_auth_token') || sessionStorage.getItem('np_auth_token');
+          const res = await fetch('/api/host/earnings', {
+            headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setEarningsData(data);
+          }
+        } catch (err) {
+          console.error('Failed to fetch host earnings:', err);
+        } finally {
+          setIsLoadingEarnings(false);
+        }
+      };
+      fetchEarnings();
+    }
+  }, [activeHostTab]);
+
+  const handleSaveArrivalInstructions = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!arrivalModalBooking) return;
+    setIsSavingArrival(true);
+    setArrivalSaveMsg(null);
+    try {
+      const token = localStorage.getItem('np_auth_token') || sessionStorage.getItem('np_auth_token');
+      const res = await fetch(`/api/host/bookings/${arrivalModalBooking.id}/arrival-instructions`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          doorCode: doorCodeInput.trim(),
+          wifiSsid: wifiSsidInput.trim(),
+          wifiPassword: wifiPasswordInput.trim(),
+          checkinGuide: checkinGuideInput.trim(),
+          houseRules: houseRulesInput.trim(),
+        }),
+      });
+
+      if (res.ok) {
+        setArrivalSaveMsg('Arrival instructions saved! Clinician can now view access details.');
+        setTimeout(() => {
+          setArrivalModalBooking(null);
+          setArrivalSaveMsg(null);
+        }, 1500);
+      } else {
+        const d = await res.json();
+        setArrivalSaveMsg(d.error || 'Failed to update instructions');
+      }
+    } catch {
+      setArrivalSaveMsg('Network error updating instructions');
+    } finally {
+      setIsSavingArrival(false);
+    }
+  };
 
   // Fetch photos on load
   useEffect(() => {
@@ -446,6 +526,37 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
 
   const handleSaveListing = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUploadError(null);
+
+    // 1. Title validation
+    if (!listingTitle || listingTitle.trim().length < 5) {
+      setUploadError('Listing title must be at least 5 characters long (e.g., "Quiet Ninth Street Suite near Duke").');
+      setEditorStep(1);
+      return;
+    }
+
+    // 2. Address validation
+    if (!addressData || !addressData.formattedAddress) {
+      setUploadError('Please select and confirm a verified property address on the map in Step 1.');
+      setEditorStep(1);
+      return;
+    }
+
+    // 3. Pricing validation
+    const primaryRate = propertyType === 'entire_property' ? roomPrices[0] : Math.min(...roomPrices.slice(0, roomCount));
+    if (!primaryRate || primaryRate < 300) {
+      setUploadError('Please specify a monthly rent rate of at least $300 in Step 2.');
+      setEditorStep(2);
+      return;
+    }
+
+    // 4. Photos validation
+    if (listingPhotos.length === 0) {
+      setUploadError('Please upload at least 1 photo of the sanctuary in Step 3 before saving.');
+      setEditorStep(3);
+      return;
+    }
+
     setIsUploading(true);
     setUploadMessage('Saving listing...');
 
@@ -456,7 +567,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
         propertyType,
         roomCount,
         roomPrices,
-        listingTitle,
+        listingTitle: listingTitle.trim(),
         addressData,
         petFee,
         parkingFee,
@@ -550,7 +661,8 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
 
       setIsSavedEditor(true);
       setTimeout(() => {
-        setActiveHostTab('dashboard');
+        setEditingListingId(null);
+        setActiveHostTab('editor');
       }, 1000);
     } catch (err) {
       console.error("Error saving listing:", err);
@@ -668,15 +780,45 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
           >
             Host Profile
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveHostTab('earnings')}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+              activeHostTab === 'earnings'
+                ? 'bg-white dark:bg-[#182840] text-[#0B2559] dark:text-white shadow-[0_1px_3px_rgba(11,37,89,0.08)]'
+                : 'text-gray-600 dark:text-gray-300 hover:text-[#0B2559] dark:hover:text-white'
+            }`}
+          >
+            Earnings &amp; Payouts
+          </button>
         </div>
       </div>
 
       {activeHostTab === 'calendar' && (
-          <div className="max-w-xl mx-auto">
+          <div className="max-w-xl mx-auto space-y-4">
+              {hostListings.length > 1 && (
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 px-1">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider shrink-0">Property:</span>
+                  {hostListings.map(listing => (
+                    <button
+                      key={listing.id}
+                      onClick={() => setSelectedCalendarListingId(listing.id)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap shadow-xs ${
+                        (selectedCalendarListingId || hostListings[0]?.id) === listing.id
+                          ? 'bg-[#0A6FA8] text-white'
+                          : 'bg-white dark:bg-[#0E1A2E] text-gray-600 dark:text-gray-300 hover:bg-gray-100 border border-gray-200 dark:border-gray-700'
+                      }`}
+                    >
+                      {listing.title || listing.address || `Sanctuary ${listing.id.slice(0, 6)}`}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {editingListingId ? (
                 <HostAvailabilityCalendar listingId={editingListingId} />
               ) : hostListings.length > 0 ? (
-                <HostAvailabilityCalendar listingId={hostListings[0].id} />
+                <HostAvailabilityCalendar listingId={selectedCalendarListingId || hostListings[0].id} />
               ) : (
                 <div className="text-center p-8 text-gray-500">No listings found.</div>
               )}
@@ -740,6 +882,90 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {activeHostTab === 'earnings' && (
+        <div className="space-y-6 max-w-4xl">
+          <div>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#0A6FA8] dark:text-[#3E9AD1]">
+              Financial Performance
+            </span>
+            <h2 className="text-xl font-bold text-[#0B2559] dark:text-white mt-0.5">
+              Earnings &amp; Direct Deposits
+            </h2>
+            <p className="text-xs text-gray-500 mt-1">
+              Transparent ~95% host split with zero hidden fees. Payouts are transferred automatically via Stripe Connect.
+            </p>
+          </div>
+
+          {/* 4 Metric Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-white dark:bg-[#0B1626] rounded-2xl p-4 border border-[rgba(11,37,89,0.08)] dark:border-[#233550] shadow-xs">
+              <span className="text-[11px] text-gray-500 block">Total Gross Booked</span>
+              <span className="text-xl sm:text-2xl font-bold text-[#0B2559] dark:text-white tabular-nums block mt-1">
+                ${earningsData?.summary?.totalGross ? Number(earningsData.summary.totalGross).toLocaleString() : Math.round(totalMonthlyNet / 0.95).toLocaleString()}.00
+              </span>
+              <span className="text-[10px] text-gray-400">Clinician payments</span>
+            </div>
+
+            <div className="bg-white dark:bg-[#0B1626] rounded-2xl p-4 border border-[rgba(11,37,89,0.08)] dark:border-[#233550] shadow-xs">
+              <span className="text-[11px] text-gray-500 block">Net Host Payouts</span>
+              <span className="text-xl sm:text-2xl font-bold text-[#2F6E5E] dark:text-[#aff0db] tabular-nums block mt-1">
+                ${earningsData?.summary?.totalHostNet ? Number(earningsData.summary.totalHostNet).toLocaleString() : Math.round(totalMonthlyNet).toLocaleString()}.00
+              </span>
+              <span className="text-[10px] text-[#2F6E5E] font-semibold">~95% Net Split</span>
+            </div>
+
+            <div className="bg-white dark:bg-[#0B1626] rounded-2xl p-4 border border-[rgba(11,37,89,0.08)] dark:border-[#233550] shadow-xs">
+              <span className="text-[11px] text-gray-500 block">Platform Fee (~5%)</span>
+              <span className="text-xl sm:text-2xl font-bold text-[#0B2559] dark:text-white tabular-nums block mt-1">
+                ${earningsData?.summary?.totalPlatformFees ? Number(earningsData.summary.totalPlatformFees).toLocaleString() : Math.round(totalMonthlyNet * 0.0526).toLocaleString()}.00
+              </span>
+              <span className="text-[10px] text-gray-400">Verification &amp; insurance</span>
+            </div>
+
+            <div className="bg-white dark:bg-[#0B1626] rounded-2xl p-4 border border-[rgba(11,37,89,0.08)] dark:border-[#233550] shadow-xs">
+              <span className="text-[11px] text-gray-500 block">Payout Status</span>
+              <span className="text-base sm:text-lg font-bold text-[#2F6E5E] dark:text-[#aff0db] flex items-center gap-1.5 mt-1">
+                <span className="material-symbols-outlined text-[18px]">verified</span>
+                <span>{payoutsEnabled ? 'Direct Active' : 'Stripe Pending'}</span>
+              </span>
+              <span className="text-[10px] text-gray-400">Non-custodial split</span>
+            </div>
+          </div>
+
+          {/* Detailed Transaction List */}
+          <div className="bg-white dark:bg-[#0B1626] rounded-3xl border border-[rgba(11,37,89,0.08)] dark:border-[#233550] shadow-xs overflow-hidden">
+            <div className="p-4 border-b border-gray-100 dark:border-[#233550] flex items-center justify-between">
+              <h3 className="font-bold text-sm text-[#0B2559] dark:text-white">Transaction Breakdown</h3>
+              <span className="text-xs text-gray-400 tabular-nums">
+                {earningsData?.transactions?.length || payoutBookings.length} rotations
+              </span>
+            </div>
+            <div className="divide-y divide-gray-100 dark:divide-[#233550]">
+              {(earningsData?.transactions?.length > 0 ? earningsData.transactions : payoutBookings).map((item: any, idx: number) => {
+                const amount = item.amount || item.totalInitialCharge || 0;
+                const net = item.host_net_payout || item.hostNetPayout || Math.round(amount * 0.95);
+                const title = item.listing_title || item.listingTitle || 'Furnished Sanctuary';
+                const date = item.date || item.created_at || item.startDate || 'Recent stay';
+                return (
+                  <div key={idx} className="p-4 flex items-center justify-between text-xs">
+                    <div>
+                      <p className="font-bold text-[#0B2559] dark:text-white">{title}</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">{date} • Rotation reservation</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-[#2F6E5E] dark:text-[#aff0db] tabular-nums text-sm">
+                        +${Number(net).toLocaleString()}.00
+                      </p>
+                      <p className="text-[10px] text-gray-400">Gross ${Number(amount).toLocaleString()}.00</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
@@ -812,9 +1038,76 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
               </div>
             ) : (
               filteredRequests.map((req) => (
-                <div key={req.id} className="bg-white dark:bg-[#0B1626] rounded-2xl p-4 sm:p-5 shadow-[0_2px_12px_rgba(11,37,89,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.3)] border border-[rgba(11,37,89,0.06)] dark:border-[#233550]">
-                  <h3 className="font-bold text-[#0B2559] dark:text-white">Request: {req.id}</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Status: {req.status}</p>
+                <div key={req.id} className="bg-white dark:bg-[#0B1626] rounded-2xl p-4 sm:p-5 shadow-[0_2px_12px_rgba(11,37,89,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.3)] border border-[rgba(11,37,89,0.06)] dark:border-[#233550] flex flex-wrap sm:flex-nowrap items-center justify-between gap-4">
+                  <div className="flex-1 min-w-[200px]">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="font-bold text-sm text-[#0B2559] dark:text-white">{req.listingTitle}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-sm font-bold uppercase tracking-wider ${
+                        req.status === 'pending_host_approval' ? 'bg-[#FBF0D6] text-[#B9822E]' :
+                        ['approved', 'active', 'completed'].includes(req.status) ? 'bg-[#E1EFE9] text-[#2F6E5E]' : 'bg-[#F4E2DC] text-[#A8452E]'
+                      }`}>{req.status === 'pending_host_approval' ? 'Requested' : req.status === 'approved' ? 'Accepted' : req.status}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Clinician: <span className="font-semibold text-[#0B2559] dark:text-gray-200">{req.clinicianName || 'Travel Clinician'}</span> • {req.startDate} – {req.endDate} ({req.durationWeeks} wks)
+                    </p>
+                    {req.paymentIntentId && (
+                      <p className="text-[11px] font-mono text-[#0A6FA8] dark:text-[#3E9AD1] mt-1 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px]">lock</span>
+                        <span>Pre-Auth Hold: {req.paymentIntentId}</span>
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-[#0B2559] dark:text-white tabular-nums">${req.totalInitialCharge}</div>
+                      <div className="text-[10px] text-gray-400">Total Payout (95%)</div>
+                    </div>
+                    {req.status === 'pending_host_approval' && (
+                      <div className="flex flex-col gap-1.5">
+                        <button
+                          onClick={() => onApproveBooking(req.id)}
+                          className="px-3.5 py-1.5 bg-[#2F6E5E] hover:bg-[#195b4c] text-white text-[11px] font-bold rounded-lg cursor-pointer transition-colors shadow-xs flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">check</span>
+                          Accept &amp; Capture
+                        </button>
+                        <button
+                          onClick={() => onDeclineBooking(req.id)}
+                          className="px-3.5 py-1 bg-[#F4E2DC] hover:bg-[#e4c9c1] text-[#A8452E] text-[11px] font-bold rounded-lg cursor-pointer transition-colors"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    )}
+                    {['approved', 'active', 'completed'].includes(req.status) && (
+                      <div className="flex flex-col gap-1.5 items-end">
+                        <button
+                          onClick={() => {
+                            setArrivalModalBooking(req);
+                            setDoorCodeInput(req.doorCode || '');
+                            setWifiSsidInput(req.wifiNetwork || '');
+                            setWifiPasswordInput('');
+                            setCheckinGuideInput('');
+                            setHouseRulesInput('');
+                            setArrivalSaveMsg(null);
+                          }}
+                          className="px-3 py-1.5 bg-[#0A6FA8] hover:bg-[#0C7EBF] text-white text-[11px] font-bold rounded-lg cursor-pointer transition-colors shadow-xs flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">key</span>
+                          <span>Arrival details</span>
+                        </button>
+                        {onOpenMessages && (
+                          <button
+                            onClick={() => onOpenMessages(req.clinicianId || 'traveler', req.listingTitle)}
+                            className="px-3 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-[11px] font-bold rounded-lg cursor-pointer transition-colors flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">forum</span>
+                            <span>Message</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))
             )}
@@ -823,31 +1116,25 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
           {/* Payout History Section */}
           <div className="space-y-3.5 mt-8">
             <h2 className="text-base font-bold text-[#0B2559] dark:text-white">Payout History</h2>
-            <div className="bg-white dark:bg-[#0B1626] rounded-2xl border border-[rgba(11,37,89,0.06)] dark:border-[#233550] overflow-hidden shadow-[0_2px_12px_rgba(11,37,89,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.3)]">
-              <table className="w-full text-xs">
-                <thead className="bg-[#EFF6FB] dark:bg-[#0E1A2E] text-gray-500">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-bold">Date</th>
-                    <th className="px-4 py-3 text-left font-bold">Booking ID</th>
-                    <th className="px-4 py-3 text-right font-bold">Net Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[rgba(11,37,89,0.06)] dark:divide-[#233550]">
-                  {payoutBookings.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="px-4 py-8 text-center text-gray-400">No payout history available.</td>
-                    </tr>
-                  ) : (
-                    payoutBookings.map(b => (
-                      <tr key={b.id} className="hover:bg-[#EFF6FB] dark:hover:bg-[#182840] transition-colors">
-                        <td className="px-4 py-3">{b.startDate}</td>
-                        <td className="px-4 py-3 tabular-nums">{b.id}</td>
-                        <td className="px-4 py-3 text-right font-bold tabular-nums">${b.hostNetPayout.toFixed(2)}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+            <div className="bg-white dark:bg-[#0B1626] rounded-2xl border border-[rgba(11,37,89,0.06)] dark:border-[#233550] shadow-[0_2px_12px_rgba(11,37,89,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.3)]">
+              <div className="p-4 border-b border-[rgba(11,37,89,0.06)] dark:border-[#233550] flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-500">Date</span>
+                <span className="text-xs font-bold text-gray-500">Booking ID</span>
+                <span className="text-xs font-bold text-gray-500">Net Amount</span>
+              </div>
+              <div className="divide-y divide-[rgba(11,37,89,0.06)] dark:divide-[#233550]">
+                {payoutBookings.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-xs text-gray-400">No payout history available.</div>
+                ) : (
+                  payoutBookings.map(b => (
+                    <div key={b.id} className="flex items-center justify-between p-4 hover:bg-[#EFF6FB] dark:hover:bg-[#182840] transition-colors">
+                      <span className="text-xs font-medium text-[#0B2559] dark:text-gray-300">{b.startDate}</span>
+                      <span className="text-xs text-gray-500 tabular-nums">{b.id}</span>
+                      <span className="text-xs font-bold text-[#2F6E5E] dark:text-[#aff0db] tabular-nums">+${b.hostNetPayout.toFixed(2)}</span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -855,30 +1142,81 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
 
       {/* Listings List Selector */}
       {activeHostTab === 'editor' && !editingListingId && hostListings.length > 0 && (
-        <div className="mb-6 space-y-4">
-          <h2 className="text-lg font-bold text-[#0B2559] dark:text-white">Your Listings</h2>
-          <div className="grid gap-4 md:grid-cols-2">
+        <div className="mb-8 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-black text-[#0B2559] dark:text-white">Your Listed Sanctuaries</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Manage rates, photos, and availability instantly with one click.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setEditingListingId('new'); setEditorStep(1); }}
+              className="px-5 py-2.5 rounded-full bg-[#0A6FA8] hover:bg-[#0C7EBF] text-white text-xs font-bold shadow-md transition-all cursor-pointer flex items-center gap-2 self-start"
+            >
+              <span className="material-symbols-outlined text-[18px]">add_circle</span>
+              Create New Sanctuary
+            </button>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {hostListings.map(l => (
-              <div key={l.id} onClick={() => setEditingListingId(l.id)} className="p-4 bg-white dark:bg-[#15233a] border border-[rgba(11,37,89,0.06)] dark:border-[#233550] rounded-2xl cursor-pointer hover:border-[#0A6FA8] transition-all">
-                <h3 className="font-bold text-[#0B2559] dark:text-white">{l.title || l.address_line1 || 'Sanctuary Stay'}</h3>
-                <p className="text-xs text-gray-500">{l.city}, {l.state}</p>
+              <div key={l.id} className="p-5 bg-white dark:bg-[#15233a] border border-[rgba(11,37,89,0.08)] dark:border-[#233550] rounded-3xl shadow-[0_4px_12px_rgba(11,37,89,0.04)] flex flex-col justify-between gap-4 transition-all hover:border-[#0A6FA8] group">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    {l.is_expansion_waitlist || l.isExpansionWaitlist || l.status === 'expansion_waitlist' || (!l.is_published && l.state !== 'NC' && l.state !== 'MD' && l.state !== 'CT' && l.state !== 'ND' && l.state !== 'KS') ? (
+                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#FBF0D6] dark:bg-[#342410] text-[#B9822E] dark:text-[#f8d489] flex items-center gap-1 border border-[#B9822E]/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#B9822E]"></span>
+                        Pre-Launch Waitlist ({l.state})
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                        Active &amp; Published
+                      </span>
+                    )}
+                    <span className="text-xs font-black text-[#0A6FA8] dark:text-[#3E9AD1] tabular-nums">
+                      ${Number(l.monthly_rate || l.monthlyRate || 2800).toLocaleString()}/mo
+                    </span>
+                  </div>
+                  <h3 className="font-bold text-sm text-[#0B2559] dark:text-white group-hover:text-[#0A6FA8] transition-colors line-clamp-1">{l.title || l.address_line1 || 'Sanctuary Stay'}</h3>
+                  <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">location_on</span>
+                    {l.city}, {l.state} {l.zip_code || ''}
+                  </p>
+                </div>
+                <div className="pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setEditingListingId(l.id); setEditorStep(1); }}
+                    className="flex-1 py-2 px-3 rounded-xl bg-[#EFF6FB] dark:bg-[#0E1A2E] text-[#0A6FA8] dark:text-[#3E9AD1] text-xs font-bold hover:bg-[#eaedff] dark:hover:bg-[#182840] transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">edit</span>
+                    Quick Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveHostTab('calendar'); setEditingListingId(l.id); }}
+                    className="py-2 px-3 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-bold hover:bg-gray-100 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    title="Manage Availability Calendar"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">calendar_month</span>
+                    Calendar
+                  </button>
+                </div>
               </div>
             ))}
-            <div onClick={() => setEditingListingId('new')} className="p-4 bg-[#EFF6FB] dark:bg-[#0E1A2E] border border-dashed border-[#0A6FA8] rounded-2xl cursor-pointer flex items-center justify-center flex-col gap-2 hover:bg-[#eaedff] dark:hover:bg-[#182840] transition-all">
-              <span className="material-symbols-outlined text-[#0A6FA8]">add_circle</span>
-              <span className="text-sm font-bold text-[#0A6FA8]">Create New Listing</span>
-            </div>
           </div>
         </div>
       )}
 
       {activeHostTab === 'editor' && hostListings.length === 0 && !editingListingId && (
         <div className="mb-6 space-y-4">
-          <h2 className="text-lg font-bold text-[#0B2559] dark:text-white">Your Listings</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-black text-[#0B2559] dark:text-white">Your Listed Sanctuaries</h2>
+          </div>
            <div className="grid gap-4 md:grid-cols-2">
-             <div onClick={() => setEditingListingId('new')} className="p-4 bg-[#EFF6FB] dark:bg-[#0E1A2E] border border-dashed border-[#0A6FA8] rounded-2xl cursor-pointer flex items-center justify-center flex-col gap-2 hover:bg-[#eaedff] dark:hover:bg-[#182840] transition-all">
-              <span className="material-symbols-outlined text-[#0A6FA8]">add_circle</span>
-              <span className="text-sm font-bold text-[#0A6FA8]">Create New Listing</span>
+             <div onClick={() => { setEditingListingId('new'); setEditorStep(1); }} className="p-6 bg-[#EFF6FB] dark:bg-[#0E1A2E] border border-dashed border-[#0A6FA8] rounded-3xl cursor-pointer flex items-center justify-center flex-col gap-2 hover:bg-[#eaedff] dark:hover:bg-[#182840] transition-all">
+              <span className="material-symbols-outlined text-[#0A6FA8] text-3xl">add_circle</span>
+              <span className="text-sm font-bold text-[#0A6FA8]">Create New Sanctuary</span>
             </div>
           </div>
         </div>
@@ -926,6 +1264,20 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
               </React.Fragment>
             ))}
           </div>
+
+          {uploadError && (
+            <div className="p-3.5 rounded-2xl bg-[#F4E2DC] text-[#A8452E] dark:bg-[#341611] dark:text-[#f8b4a5] text-xs font-semibold flex items-center gap-2.5 border border-[#A8452E]/30 shadow-xs" role="alert">
+              <span className="material-symbols-outlined text-[20px] shrink-0">error</span>
+              <span className="flex-1">{uploadError}</span>
+              <button
+                type="button"
+                onClick={() => setUploadError(null)}
+                className="text-xs hover:underline shrink-0 font-bold"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
 
           {isSavedEditor && (
             <div className="p-3 rounded-xl bg-[#E1EFE9] text-[#2F6E5E] dark:bg-[#142823] dark:text-[#aff0db] text-xs font-semibold flex items-center gap-2">
@@ -1038,8 +1390,19 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
                 <div className="flex justify-end pt-4">
                   <button
                     type="button"
-                    onClick={() => setEditorStep(2)}
-                    className="px-6 py-2.5 rounded-full bg-[#0B2559] text-white text-sm font-bold hover:bg-[#113274] transition-colors flex items-center gap-2"
+                    onClick={() => {
+                      setUploadError(null);
+                      if (!listingTitle || listingTitle.trim().length < 5) {
+                        setUploadError('Listing title must be at least 5 characters long (e.g., "Quiet Ninth Street Suite near Duke").');
+                        return;
+                      }
+                      if (!addressData || !addressData.formattedAddress) {
+                        setUploadError('Please select and confirm a verified property address on the map before proceeding.');
+                        return;
+                      }
+                      setEditorStep(2);
+                    }}
+                    className="px-6 py-2.5 rounded-full bg-[#0B2559] hover:bg-[#113274] text-white text-sm font-bold transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
                   >
                     Next: Pricing & Amenities <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                   </button>
@@ -1244,8 +1607,20 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditorStep(3)}
-                    className="px-6 py-2.5 rounded-full bg-[#0B2559] text-white text-sm font-bold hover:bg-[#113274] transition-colors flex items-center gap-2"
+                    onClick={() => {
+                      setUploadError(null);
+                      const primaryRate = propertyType === 'entire_property' ? roomPrices[0] : Math.min(...roomPrices.slice(0, roomCount));
+                      if (!primaryRate || primaryRate < 300) {
+                        setUploadError('Monthly rent must be at least $300.');
+                        return;
+                      }
+                      if (!hasBlackout && !hasQuietHours && !hasScrubWasher && !hasDedicatedParking && !hasFiberWifi) {
+                        setUploadError('Please select at least one healthcare amenity for traveling clinicians.');
+                        return;
+                      }
+                      setEditorStep(3);
+                    }}
+                    className="px-6 py-2.5 rounded-full bg-[#0B2559] hover:bg-[#113274] text-white text-sm font-bold transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
                   >
                     Next: Media Hub <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                   </button>
@@ -1679,6 +2054,126 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
                 </ConnectComponentsProvider>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Arrival Instructions Modal */}
+      {arrivalModalBooking && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white dark:bg-[#0B1626] rounded-3xl max-w-lg w-full p-6 border border-gray-100 dark:border-[#233550] shadow-2xl space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#0A6FA8] dark:text-[#3E9AD1]">
+                  Arrival &amp; Access Guide
+                </span>
+                <h2 className="text-lg font-bold text-[#0B2559] dark:text-white mt-0.5">
+                  Arrival Details for {arrivalModalBooking.clinicianName || 'Clinician'}
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {arrivalModalBooking.listingTitle}
+                </p>
+              </div>
+              <button
+                onClick={() => setArrivalModalBooking(null)}
+                className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            {arrivalSaveMsg && (
+              <div className="p-3 rounded-xl bg-[#E1EFE9] text-[#2F6E5E] dark:bg-[#142823] dark:text-[#aff0db] text-xs font-bold flex items-center gap-2">
+                <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                <span>{arrivalSaveMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveArrivalInstructions} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-xs font-semibold text-[#0B2559] dark:text-white mb-1">
+                  Keyless Door PIN Code / Lockbox Access
+                </label>
+                <input
+                  type="text"
+                  value={doorCodeInput}
+                  onChange={(e) => setDoorCodeInput(e.target.value)}
+                  placeholder="e.g. 4821# or lockbox code"
+                  className="w-full p-2.5 rounded-xl border border-[rgba(11,37,89,0.15)] dark:border-[#233550] bg-white dark:bg-[#0E1A2E] text-[#0B2559] dark:text-white font-mono"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[#0B2559] dark:text-white mb-1">
+                    Wi-Fi Network (SSID)
+                  </label>
+                  <input
+                    type="text"
+                    value={wifiSsidInput}
+                    onChange={(e) => setWifiSsidInput(e.target.value)}
+                    placeholder="e.g. Sanctuary-5G"
+                    className="w-full p-2.5 rounded-xl border border-[rgba(11,37,89,0.15)] dark:border-[#233550] bg-white dark:bg-[#0E1A2E] text-[#0B2559] dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#0B2559] dark:text-white mb-1">
+                    Wi-Fi Password
+                  </label>
+                  <input
+                    type="text"
+                    value={wifiPasswordInput}
+                    onChange={(e) => setWifiPasswordInput(e.target.value)}
+                    placeholder="Wi-Fi Password"
+                    className="w-full p-2.5 rounded-xl border border-[rgba(11,37,89,0.15)] dark:border-[#233550] bg-white dark:bg-[#0E1A2E] text-[#0B2559] dark:text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#0B2559] dark:text-white mb-1">
+                  Check-in &amp; Parking Instructions
+                </label>
+                <textarea
+                  rows={2}
+                  value={checkinGuideInput}
+                  onChange={(e) => setCheckinGuideInput(e.target.value)}
+                  placeholder="e.g. Reserved parking spot #4 behind unit. Keypad is on the front porch door."
+                  className="w-full p-2.5 rounded-xl border border-[rgba(11,37,89,0.15)] dark:border-[#233550] bg-white dark:bg-[#0E1A2E] text-[#0B2559] dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#0B2559] dark:text-white mb-1">
+                  Quiet Hours &amp; Sanctuary House Rules
+                </label>
+                <textarea
+                  rows={2}
+                  value={houseRulesInput}
+                  onChange={(e) => setHouseRulesInput(e.target.value)}
+                  placeholder="e.g. Day-sleeper quiet hours respected 8:00 AM - 5:00 PM. No parties."
+                  className="w-full p-2.5 rounded-xl border border-[rgba(11,37,89,0.15)] dark:border-[#233550] bg-white dark:bg-[#0E1A2E] text-[#0B2559] dark:text-white"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setArrivalModalBooking(null)}
+                  className="px-4 py-2 rounded-full text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingArrival}
+                  className="px-5 py-2 rounded-full text-xs font-semibold bg-[#0A6FA8] text-white hover:bg-[#0C7EBF] disabled:opacity-50 transition-colors shadow-xs cursor-pointer"
+                >
+                  {isSavingArrival ? 'Saving...' : 'Save arrival details'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
