@@ -95,6 +95,9 @@ const runTests = process.env.DATABASE_URL ? describe : describe.skip;
 
 runTests('CNA Verification API (Real DB)', () => {
   beforeAll(async () => {
+    // Ensure database schema is initialized
+    await db.initDb();
+
     // Insert a test user
     await db.query(`
       INSERT INTO users (id, email, full_name, password_hash, role)
@@ -105,7 +108,11 @@ runTests('CNA Verification API (Real DB)', () => {
 
   afterAll(async () => {
     // Cleanup
-    await db.query(`DELETE FROM users WHERE id = 'test-cna-user'`);
+    try {
+      await db.query(`DELETE FROM users WHERE id = 'test-cna-user'`);
+    } catch {
+      // Ignore cleanup errors if DB connection closed
+    }
   });
 
   it('should save CNA verification with State Nurse Aide Registry', async () => {

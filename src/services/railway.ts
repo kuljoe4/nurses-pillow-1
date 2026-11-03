@@ -218,19 +218,6 @@ class RailwayDatabaseManager {
           created_at TIMESTAMPTZ DEFAULT NOW()
         );
 
-        CREATE TABLE IF NOT EXISTS listing_availability_blocks (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            listing_id VARCHAR(255) NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
-            room_id UUID REFERENCES listing_rooms(id) ON DELETE CASCADE,
-            start_date DATE NOT NULL,
-            end_date DATE NOT NULL,
-            is_blocked BOOLEAN DEFAULT TRUE,
-            block_reason VARCHAR(100) DEFAULT 'host_blocked',
-            created_at TIMESTAMPTZ DEFAULT NOW()
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_availability_dates ON listing_availability_blocks(listing_id, start_date, end_date);
-
         -- First create custom ENUM types if they don't exist
         DO $$ BEGIN
             CREATE TYPE verification_type AS ENUM (
@@ -491,6 +478,19 @@ class RailwayDatabaseManager {
             created_at TIMESTAMPTZ DEFAULT NOW()
         );
 
+        CREATE TABLE IF NOT EXISTS listing_availability_blocks (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            listing_id VARCHAR(255) NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+            room_id UUID REFERENCES listing_rooms(id) ON DELETE CASCADE,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            is_blocked BOOLEAN DEFAULT TRUE,
+            block_reason VARCHAR(100) DEFAULT 'host_blocked',
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_availability_dates ON listing_availability_blocks(listing_id, start_date, end_date);
+
         CREATE TABLE IF NOT EXISTS bookings (
           id VARCHAR(255) PRIMARY KEY,
           listing_id VARCHAR(255) NOT NULL,
@@ -660,7 +660,8 @@ class RailwayDatabaseManager {
         console.log('[Railway DB] ✅ Initial seed sync to Railway complete.');
       }
     } catch (err: any) {
-      console.warn('[Railway DB] Schema auto-bootstrap notice:', err.message);
+      console.error('[Railway DB] Schema auto-bootstrap error:', err.message);
+      throw err;
     }
   }
 
