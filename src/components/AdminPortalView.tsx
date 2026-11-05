@@ -281,7 +281,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
 
   return (
     <div
-      className={`w-full min-h-[80vh] py-8 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto transition-colors ${
+      className={`np-dashboard np-admin-dashboard w-full min-h-[80vh] py-8 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto transition-colors ${
         isNightShiftMode ? 'text-[#E6ECF7]' : 'text-[#0B2559]'
       }`}
     >
