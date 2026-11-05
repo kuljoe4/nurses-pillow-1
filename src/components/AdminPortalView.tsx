@@ -56,13 +56,15 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               startDate: b.start_date || '2026-10-15',
               endDate: b.end_date || '2026-11-15',
               durationWeeks: b.duration_weeks || 13,
-              monthlyRent: Number(b.monthly_rent || b.total_traveler_charged || 1950),
+              monthlyRent: Number(b.monthlyRent ?? b.monthly_rent ?? b.total_rent ?? b.total_traveler_charged ?? 1950),
               securityDeposit: 0,
               cleaningFee: Number(b.cleaning_fee || 150),
               petFee: Number(b.pet_fee || 0),
               travelerFee: 0,
               totalInitialCharge: Number(b.total_traveler_charged || 2100),
-              hostNetPayout: Number(b.monthly_rent || 1950) * 0.95,
+              hostNetPayout: Number(b.hostNetPayout ?? b.host_payout_amount ?? 0),
+              platformFeeAmount: Number(b.platformFeeAmount ?? b.host_platform_fee_amount ?? 0),
+              platformFeePercent: Number(b.platformFeePercent ?? b.host_platform_fee_percent ?? 5),
               status: b.status || 'pending_host_approval',
               submittedAt: 'Recently',
               deadlineHoursRemaining: 24,
@@ -745,10 +747,10 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
               <div>
                 <h2 className="text-lg font-bold text-[#0B2559] dark:text-white">
-                  Booking Authorizations &amp; Split Engine Monitor
+                  Booking Authorizations &amp; Payment Split Monitor
                 </h2>
                 <p className="text-xs text-gray-500">
-                  Live monitor of pre-authorization holds, 5% platform fee deduction, and ~95% host split captures
+                  Live monitor of pre-authorization holds and each booking's recorded host commission and payout
                 </p>
               </div>
               <span className="text-xs font-bold text-[#0A6FA8] dark:text-[#3E9AD1]">
@@ -769,8 +771,8 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                       <th className="py-3 px-3">Traveling Clinician</th>
                       <th className="py-3 px-3">Sanctuary &amp; Hospital</th>
                       <th className="py-3 px-3">Gross Rent</th>
-                      <th className="py-3 px-3">Platform Fee (5%)</th>
-                      <th className="py-3 px-3">Host Net Payout (~95%)</th>
+                      <th className="py-3 px-3">Platform Fee</th>
+                      <th className="py-3 px-3">Host Net Payout</th>
                       <th className="py-3 px-3">Status</th>
                     </tr>
                   </thead>
@@ -792,10 +794,10 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                           ${b.monthlyRent.toLocaleString()}
                         </td>
                         <td className="py-3.5 px-3 text-[#0A6FA8] dark:text-[#3E9AD1] font-bold tabular-nums">
-                          ${(b.monthlyRent * 0.05).toFixed(2)}
+                          ${Number(b.platformFeeAmount || (b.monthlyRent * ((b.platformFeePercent ?? 5) / 100))).toFixed(2)}
                         </td>
                         <td className="py-3.5 px-3 text-[#2F6E5E] dark:text-[#aff0db] font-bold tabular-nums">
-                          ${b.hostNetPayout ? b.hostNetPayout.toFixed(2) : (b.monthlyRent * 0.95).toFixed(2)}
+                          ${b.hostNetPayout ? b.hostNetPayout.toFixed(2) : (b.monthlyRent - Number(b.platformFeeAmount || (b.monthlyRent * ((b.platformFeePercent ?? 5) / 100)))).toFixed(2)}
                         </td>
                         <td className="py-3.5 px-3">
                           <span
