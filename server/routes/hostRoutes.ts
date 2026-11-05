@@ -426,8 +426,8 @@ router.get('/earnings', authenticateToken, async (req: AuthenticatedRequest, res
 
     const items = bookingsRes.rows.map((row: any) => {
       const gross = Number(row.total_rent || 0) + Number(row.cleaning_fee || 0) + Number(row.pet_fee || 0);
-      const feePercent = Number(row.host_platform_fee_percent || 5.00);
-      const feeAmount = Number(row.host_platform_fee_amount || (gross * (feePercent / 100)));
+      const feePercent = row.host_platform_fee_percent == null ? 5.00 : Number(row.host_platform_fee_percent);
+      const feeAmount = row.host_platform_fee_amount == null ? Number((Number(row.total_rent || 0) * (feePercent / 100)).toFixed(2)) : Number(row.host_platform_fee_amount);
       const net = Number(row.host_payout_amount || (gross - feeAmount));
 
       totalGross += gross;
