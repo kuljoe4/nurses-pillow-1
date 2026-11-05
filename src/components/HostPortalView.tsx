@@ -698,7 +698,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
 
   return (
     <div
-      className={`w-full min-h-[80vh] py-5 sm:py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-4 sm:space-y-5 transition-colors ${
+      className={`np-dashboard np-host-dashboard w-full min-h-[80vh] py-5 sm:py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-4 sm:space-y-5 transition-colors ${
         isNightShiftMode ? 'text-[#E6ECF7]' : 'text-[#0B2559]'
       }`}
     >
@@ -719,10 +719,11 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
         </div>
 
         {/* Capsule Segment Switcher */}
-        <div className="inline-flex p-1 rounded-full bg-[#EFF6FB] dark:bg-[#0E1A2E] border border-[rgba(11,37,89,0.06)] dark:border-[#233550] shrink-0">
+        <div role="navigation" aria-label="Host dashboard sections" className="np-dashboard-nav inline-flex p-1 rounded-full bg-[#EFF6FB] dark:bg-[#0E1A2E] border border-[rgba(11,37,89,0.06)] dark:border-[#233550] shrink-0">
           <button
             type="button"
             onClick={() => setActiveHostTab('dashboard')}
+            aria-current={activeHostTab === 'dashboard' ? 'page' : undefined}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
               activeHostTab === 'dashboard'
                 ? 'bg-white dark:bg-[#182840] text-[#0B2559] dark:text-white shadow-[0_1px_3px_rgba(11,37,89,0.08)]'
@@ -739,6 +740,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveHostTab('editor')}
+            aria-current={activeHostTab === 'editor' ? 'page' : undefined}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
               activeHostTab === 'editor'
                 ? 'bg-white dark:bg-[#182840] text-[#0B2559] dark:text-white shadow-[0_1px_3px_rgba(11,37,89,0.08)]'
@@ -750,6 +752,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveHostTab('calendar')}
+            aria-current={activeHostTab === 'calendar' ? 'page' : undefined}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
               activeHostTab === 'calendar'
                 ? 'bg-white dark:bg-[#182840] text-[#0B2559] dark:text-white shadow-[0_1px_3px_rgba(11,37,89,0.08)]'
@@ -761,6 +764,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveHostTab('onboarding')}
+            aria-current={activeHostTab === 'onboarding' ? 'page' : undefined}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
               activeHostTab === 'onboarding'
                 ? 'bg-white dark:bg-[#182840] text-[#0B2559] dark:text-white shadow-[0_1px_3px_rgba(11,37,89,0.08)]'
@@ -772,6 +776,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveHostTab('profile')}
+            aria-current={activeHostTab === 'profile' ? 'page' : undefined}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
               activeHostTab === 'profile'
                 ? 'bg-white dark:bg-[#182840] text-[#0B2559] dark:text-white shadow-[0_1px_3px_rgba(11,37,89,0.08)]'
@@ -783,6 +788,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveHostTab('earnings')}
+            aria-current={activeHostTab === 'earnings' ? 'page' : undefined}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
               activeHostTab === 'earnings'
                 ? 'bg-white dark:bg-[#182840] text-[#0B2559] dark:text-white shadow-[0_1px_3px_rgba(11,37,89,0.08)]'
