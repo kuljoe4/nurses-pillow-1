@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { AdminResponsiveTableLabels } from './AdminResponsiveTableLabels';
 
 export interface AuditLogEntry {
   id: string;
@@ -353,6 +354,7 @@ export const AdminActivityLogView: React.FC<AdminActivityLogViewProps> = ({
 
   return (
     <div className="space-y-6">
+      <AdminResponsiveTableLabels />
       {/* Top Header Block */}
       <div className="bg-white dark:bg-[#0B1626] rounded-3xl p-6 sm:p-7 shadow-xs border border-[rgba(11,37,89,0.08)] dark:border-[#233550]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-gray-100 dark:border-gray-800">
@@ -571,7 +573,7 @@ export const AdminActivityLogView: React.FC<AdminActivityLogViewProps> = ({
             No audit log entries match your filter criteria.
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto admin-responsive-table">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-400 font-bold uppercase text-[10px]">
