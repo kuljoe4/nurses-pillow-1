@@ -719,10 +719,12 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
         </div>
 
         {/* Capsule Segment Switcher */}
-        <div className="inline-flex p-1 rounded-full bg-[#EFF6FB] dark:bg-[#0E1A2E] border border-[rgba(11,37,89,0.06)] dark:border-[#233550] shrink-0">
+        <div role="tablist" aria-label="Host dashboard sections" className="np-dashboard-nav inline-flex p-1 rounded-full bg-[#EFF6FB] dark:bg-[#0E1A2E] border border-[rgba(11,37,89,0.06)] dark:border-[#233550] shrink-0">
           <button
             type="button"
             onClick={() => setActiveHostTab('dashboard')}
+            role="tab"
+            aria-selected={activeHostTab === 'dashboard'}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
               activeHostTab === 'dashboard'
                 ? 'bg-white dark:bg-[#182840] text-[#0B2559] dark:text-white shadow-[0_1px_3px_rgba(11,37,89,0.08)]'
@@ -739,6 +741,8 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveHostTab('editor')}
+            role="tab"
+            aria-selected={activeHostTab === 'editor'}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
               activeHostTab === 'editor'
                 ? 'bg-white dark:bg-[#182840] text-[#0B2559] dark:text-white shadow-[0_1px_3px_rgba(11,37,89,0.08)]'
@@ -750,6 +754,8 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveHostTab('calendar')}
+            role="tab"
+            aria-selected={activeHostTab === 'calendar'}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
               activeHostTab === 'calendar'
                 ? 'bg-white dark:bg-[#182840] text-[#0B2559] dark:text-white shadow-[0_1px_3px_rgba(11,37,89,0.08)]'
@@ -761,6 +767,8 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveHostTab('onboarding')}
+            role="tab"
+            aria-selected={activeHostTab === 'onboarding'}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
               activeHostTab === 'onboarding'
                 ? 'bg-white dark:bg-[#182840] text-[#0B2559] dark:text-white shadow-[0_1px_3px_rgba(11,37,89,0.08)]'
@@ -772,6 +780,8 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveHostTab('profile')}
+            role="tab"
+            aria-selected={activeHostTab === 'profile'}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
               activeHostTab === 'profile'
                 ? 'bg-white dark:bg-[#182840] text-[#0B2559] dark:text-white shadow-[0_1px_3px_rgba(11,37,89,0.08)]'
@@ -783,6 +793,8 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveHostTab('earnings')}
+            role="tab"
+            aria-selected={activeHostTab === 'earnings'}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
               activeHostTab === 'earnings'
                 ? 'bg-white dark:bg-[#182840] text-[#0B2559] dark:text-white shadow-[0_1px_3px_rgba(11,37,89,0.08)]'
