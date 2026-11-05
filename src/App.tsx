@@ -12,7 +12,6 @@ import {
   INITIAL_VERIFICATION_DATA,
   BLANK_VERIFICATION_DATA,
 } from "./data/mockData";
-import { ACTIVE_STATES } from "./lib/constants/states";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { ClinicalLicenseStep } from "./components/ClinicalLicenseStep";
@@ -200,7 +199,7 @@ export default function App() {
       listings: [],
     },
   );
-  const [activeStates, setActiveStates] = useState<string[]>([...ACTIVE_STATES]);
+  const [activeStates, setActiveStates] = useState<string[]>([]);
 
   const [isStagingAuthenticated, setIsStagingAuthenticated] = useState<boolean>(
     () => {
@@ -993,7 +992,7 @@ export default function App() {
       const res = await fetch('/api/territories/active');
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data.activeStates) && data.activeStates.length > 0) {
+        if (Array.isArray(data.activeStates)) {
           setActiveStates(data.activeStates);
         }
       }
@@ -1004,7 +1003,7 @@ export default function App() {
 
   // Callback triggered when an admin approves/launches a state in the admin portal
   const handleStateActivated = useCallback(async (stateCode: string, newActiveList?: string[]) => {
-    if (newActiveList && newActiveList.length > 0) {
+    if (newActiveList) {
       setActiveStates(newActiveList);
     } else {
       setActiveStates((prev) => {
