@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../services/database';
 import { NursesPillowLogo } from './NursesPillowLogo';
 import { ACTIVE_CLEARED_STATES } from '../data/mockData';
-import { ACTIVE_STATES, getStateName } from '../lib/constants/states';
+import { getStateName } from '../lib/constants/states';
 import { ActiveStatesMap } from './ui/ActiveStatesMap';
 
 interface FooterProps {
