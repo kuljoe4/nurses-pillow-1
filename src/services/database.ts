@@ -297,8 +297,6 @@ class DatabaseService {
         baths: 1,
         sqft: 800,
         images: Array.isArray(l.images) ? l.images : [],
-        nurseRating: 98,
-        reviewsCount: 12,
         amenities: {
           blackoutCurtains: true,
           whiteNoiseMachine: true,
