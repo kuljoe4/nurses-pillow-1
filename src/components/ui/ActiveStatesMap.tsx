@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
-import { ACTIVE_STATES, getStateCoordinates, getStateName } from '../../lib/constants/states';
+import { getStateCoordinates, getStateName } from '../../lib/constants/states';
 
 const geoUrl = '/states-10m.json';
 
