@@ -222,7 +222,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
 
   const activeStatesList = (propActiveStates && propActiveStates.length > 0
     ? propActiveStates
-    : territoriesData?.activeStates || ['NC', 'MD', 'CT', 'ND', 'KS']).map((s: string) => s.toUpperCase());
+    : territoriesData?.activeStates || []).map((s: string) => s.toUpperCase());
 
   // State Profile for selected state
   const currentTerritory = territoriesData?.territories?.find((t: any) => t.stateCode === selectedState);
