@@ -57,6 +57,21 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
   const [showCancellationDetails, setShowCancellationDetails] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
 
+  const [platformFeePercent, setPlatformFeePercent] = useState<number>(5);
+  useEffect(() => {
+    let active = true;
+    fetch('/api/platform/fee')
+      .then((res) => res.ok ? res.json() : Promise.reject(new Error('Fee settings unavailable')))
+      .then((data) => {
+        if (active && Number.isFinite(Number(data.hostFeePercent))) {
+          setPlatformFeePercent(Number(data.hostFeePercent));
+          stripeConnect.setGlobalPlatformFeePercent(Number(data.hostFeePercent));
+        }
+      })
+      .catch((err) => console.warn('[Checkout] Using launch commission default:', err));
+    return () => { active = false; };
+  }, []);
+
   // Selected policy tier (defaulting to flexible_30d)
   const cancellationTier: CancellationTier = (listing as any).cancellationTier || 'flexible_30d';
   const tierDetails = CancellationRefundEngine.getTierDetails(cancellationTier);
@@ -132,9 +147,7 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
   const hostOverride = hostEffective.host;
 
   // Determine the final fee rate to use (listing custom fee takes precedence over host effective fee)
-  const finalFeeRate = listing.customFeeOverridePercent !== undefined
-    ? listing.customFeeOverridePercent / 100
-    : hostEffective.feeRate;
+  const finalFeeRate = platformFeePercent / 100;
 
   const isListingOverrideActive = listing.customFeeOverridePercent !== undefined;
 
