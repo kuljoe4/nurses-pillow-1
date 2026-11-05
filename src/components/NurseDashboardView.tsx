@@ -298,7 +298,7 @@ export const NurseDashboardView: React.FC<NurseDashboardViewProps> = ({
 
       {/* Segmented Tab Navigation Capsule */}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-        <div  aria-label="Clinician dashboard sections" className="np-dashboard-nav inline-flex p-1 rounded-full bg-[#EFF6FB] dark:bg-[#0E1A2E] border border-[rgba(11,37,89,0.06)] dark:border-[#233550]">
+        <div role="navigation" aria-label="Clinician dashboard sections" className="np-dashboard-nav inline-flex p-1 rounded-full bg-[#EFF6FB] dark:bg-[#0E1A2E] border border-[rgba(11,37,89,0.06)] dark:border-[#233550]">
           <button
             type="button"
             onClick={() => setActiveTab('bookings')}
