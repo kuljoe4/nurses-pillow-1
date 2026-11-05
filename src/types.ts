@@ -47,6 +47,8 @@ export interface BookingRequest {
   selectedExtraOptions?: Array<{ name: string; price: number }>;
   totalInitialCharge: number;
   hostNetPayout: number;
+  platformFeeAmount?: number;
+  platformFeePercent?: number;
   status: 'pending_host_approval' | 'approved' | 'declined' | 'active' | 'completed';
   submittedAt: string;
   deadlineHoursRemaining: number;
