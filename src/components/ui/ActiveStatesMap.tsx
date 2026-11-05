@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
-import { ACTIVE_STATES } from '../../lib/constants/states';
+import { ACTIVE_STATES, getStateCoordinates, getStateName } from '../../lib/constants/states';
 
 const geoUrl = '/states-10m.json';
 
@@ -17,20 +17,36 @@ const FIPS_TO_STATE: Record<string, string> = {
   "54": "WV", "55": "WI", "56": "WY"
 };
 
-const ACTIVE_HUBS: { code: string; name: string; hub: string; coordinates: [number, number] }[] = [
-  { code: 'NC', name: 'North Carolina', hub: 'Duke & UNC Health Systems', coordinates: [-79.4, 35.6] },
-  { code: 'MD', name: 'Maryland', hub: 'Johns Hopkins & UM Medical Center', coordinates: [-76.7, 39.1] },
-  { code: 'CT', name: 'Connecticut', hub: 'Yale New Haven & Hartford Hospital', coordinates: [-72.7, 41.6] },
-  { code: 'ND', name: 'North Dakota', hub: 'Sanford Health & Essentia Hub', coordinates: [-100.5, 47.5] },
-  { code: 'KS', name: 'Kansas', hub: 'KU Medical Center & Stormont', coordinates: [-98.4, 38.5] },
-];
+const BASE_HUBS: Record<string, { hub: string; coordinates: [number, number] }> = {
+  NC: { hub: 'Duke & UNC Health Systems', coordinates: [-79.4, 35.6] },
+  MD: { hub: 'Johns Hopkins & UM Medical Center', coordinates: [-76.7, 39.1] },
+  CT: { hub: 'Yale New Haven & Hartford Hospital', coordinates: [-72.7, 41.6] },
+  ND: { hub: 'Sanford Health & Essentia Hub', coordinates: [-100.5, 47.5] },
+  KS: { hub: 'KU Medical Center & Stormont', coordinates: [-98.4, 38.5] },
+};
 
 export const ActiveStatesMap: React.FC<{
   className?: string;
   isNightShiftMode?: boolean;
   onSelectState?: (code: string) => void;
-}> = ({ className = '', isNightShiftMode = false, onSelectState }) => {
+  activeStates?: string[];
+}> = ({ className = '', isNightShiftMode = false, onSelectState, activeStates }) => {
   const [hoveredState, setHoveredState] = useState<{ code: string; name: string; hub: string } | null>(null);
+
+  // Dynamic active list fallback to ACTIVE_STATES
+  const effectiveActiveStates = (activeStates && activeStates.length > 0 ? activeStates : ACTIVE_STATES).map(s => s.toUpperCase());
+
+  // Dynamically assemble hubs for active states
+  const activeHubs = effectiveActiveStates.map((code) => {
+    const base = BASE_HUBS[code];
+    const coords = getStateCoordinates(code);
+    return {
+      code,
+      name: getStateName(code),
+      hub: base?.hub || coords.hubName || `${getStateName(code)} Regional Health Network`,
+      coordinates: base?.coordinates || [coords.lng, coords.lat] as [number, number],
+    };
+  });
 
   return (
     <div
@@ -49,7 +65,7 @@ export const ActiveStatesMap: React.FC<{
           </span>
         </div>
         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#10B981]/15 text-[#0f766e] dark:text-[#aff0db]">
-          {hoveredState ? hoveredState.hub : '5 Cleared States'}
+          {hoveredState ? hoveredState.hub : `${effectiveActiveStates.length} Cleared States`}
         </span>
       </div>
 
@@ -61,56 +77,56 @@ export const ActiveStatesMap: React.FC<{
         >
           <Geographies geography={geoUrl}>
             {({ geographies }) => (
-              <>
-                {geographies.map((geo) => {
-                  const stateId = geo.id as string;
-                  const stateAbbr = FIPS_TO_STATE[stateId];
-                  const isActive = ACTIVE_STATES.includes(stateAbbr as any);
-                  const isHovered = hoveredState?.code === stateAbbr;
+               <>
+                 {geographies.map((geo) => {
+                   const stateId = geo.id as string;
+                   const stateAbbr = FIPS_TO_STATE[stateId];
+                   const isActive = stateAbbr ? effectiveActiveStates.includes(stateAbbr) : false;
+                   const isHovered = hoveredState?.code === stateAbbr;
 
-                  return (
-                    <Geography
-                      key={geo.rsmKey}
-                      geography={geo}
-                      fill={
-                        isActive
-                          ? isHovered
-                            ? (isNightShiftMode ? '#5bb5ec' : '#0C7EBF')
-                            : (isNightShiftMode ? '#3E9AD1' : '#0A6FA8')
-                          : (isNightShiftMode ? '#162338' : '#DCE6F2')
-                      }
-                      stroke={isNightShiftMode ? '#233550' : '#ffffff'}
-                      strokeWidth={isActive ? 1.2 : 0.6}
-                      onMouseEnter={() => {
-                        const hub = ACTIVE_HUBS.find(h => h.code === stateAbbr);
-                        if (hub) setHoveredState(hub);
-                      }}
-                      onMouseLeave={() => setHoveredState(null)}
-                      onClick={() => {
-                        if (isActive && onSelectState) onSelectState(stateAbbr);
-                      }}
-                      style={{
-                        default: { outline: 'none', transition: 'fill 200ms ease' },
-                        hover: {
-                          fill: isActive
-                            ? (isNightShiftMode ? '#5bb5ec' : '#0C7EBF')
-                            : (isNightShiftMode ? '#1e304c' : '#ccd9e8'),
-                          outline: 'none',
-                          cursor: isActive ? 'pointer' : 'default',
-                        },
-                        pressed: { outline: 'none' },
-                      } as any}
-                    >
-                      <title>{geo.properties?.name}</title>
-                    </Geography>
-                  );
-                })}
-              </>
+                   return (
+                     <Geography
+                       key={geo.rsmKey}
+                       geography={geo}
+                       fill={
+                         isActive
+                           ? isHovered
+                             ? (isNightShiftMode ? '#5bb5ec' : '#0C7EBF')
+                             : (isNightShiftMode ? '#3E9AD1' : '#0A6FA8')
+                           : (isNightShiftMode ? '#162338' : '#DCE6F2')
+                       }
+                       stroke={isNightShiftMode ? '#233550' : '#ffffff'}
+                       strokeWidth={isActive ? 1.2 : 0.6}
+                       onMouseEnter={() => {
+                         const hub = activeHubs.find(h => h.code === stateAbbr);
+                         if (hub) setHoveredState(hub);
+                       }}
+                       onMouseLeave={() => setHoveredState(null)}
+                       onClick={() => {
+                         if (isActive && onSelectState && stateAbbr) onSelectState(stateAbbr);
+                       }}
+                       style={{
+                         default: { outline: 'none', transition: 'fill 200ms ease' },
+                         hover: {
+                           fill: isActive
+                             ? (isNightShiftMode ? '#5bb5ec' : '#0C7EBF')
+                             : (isNightShiftMode ? '#1e304c' : '#ccd9e8'),
+                           outline: 'none',
+                           cursor: isActive ? 'pointer' : 'default',
+                         },
+                         pressed: { outline: 'none' },
+                       } as any}
+                     >
+                       <title>{geo.properties?.name}</title>
+                     </Geography>
+                   );
+                 })}
+               </>
             )}
           </Geographies>
 
           {/* Glowing Beacon Markers for Active Medical Hubs */}
-          {ACTIVE_HUBS.map((hub) => (
+          {activeHubs.map((hub) => (
             <Marker
               key={hub.code}
               coordinates={hub.coordinates}

@@ -12,6 +12,7 @@ import {
   INITIAL_VERIFICATION_DATA,
   BLANK_VERIFICATION_DATA,
 } from "./data/mockData";
+import { ACTIVE_STATES } from "./lib/constants/states";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { ClinicalLicenseStep } from "./components/ClinicalLicenseStep";
@@ -25,7 +26,7 @@ import { Milestone2ScopeGate } from "./components/Milestone2ScopeGate";
 import { Breadcrumbs } from "./components/Breadcrumbs";
 import { ScrollProgressIndicator } from "./components/ScrollProgressIndicator";
 import type { AdminSheetsPreset } from "./components/GoogleSheetsSyncModal";
-import { Stethoscope, Building2, ShieldAlert } from "lucide-react";
+import { Stethoscope, Building2, ShieldAlert, ShieldCheck } from "lucide-react";
 import { HostPublicProfileView } from "./components/HostPublicProfileView";
 import { Toast } from "./components/ui/Toast";
 import { SearchListingsSkeleton } from "./components/skeletons/SearchListingsSkeleton";
@@ -199,6 +200,7 @@ export default function App() {
       listings: [],
     },
   );
+  const [activeStates, setActiveStates] = useState<string[]>([...ACTIVE_STATES]);
 
   const [isStagingAuthenticated, setIsStagingAuthenticated] = useState<boolean>(
     () => {
@@ -632,6 +634,37 @@ export default function App() {
     ];
   });
 
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0);
+
+  const fetchUnreadCount = useCallback(async () => {
+    if (!currentUser || currentUser.role === 'guest') {
+      setUnreadMessagesCount(0);
+      return;
+    }
+    try {
+      const token = localStorage.getItem('np_auth_token') || sessionStorage.getItem('np_auth_token');
+      if (!token) return;
+      const res = await fetch('/api/messages/threads', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.threads)) {
+          const totalUnread = data.threads.reduce((sum: number, t: any) => sum + (t.unreadCount || 0), 0);
+          setUnreadMessagesCount(totalUnread);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch unread messages count:", err);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 15000);
+    return () => clearInterval(interval);
+  }, [fetchUnreadCount]);
+
   const [selectedBookingDetail, setSelectedBookingDetail] = useState<BookingRequest | null>(null);
   const [isBookingDetailOpen, setIsBookingDetailOpen] = useState(false);
 
@@ -954,6 +987,45 @@ export default function App() {
     setVerificationData((prev) => ({ ...prev, ...updates }));
   }, []);
 
+  // Sync active territories from PostgreSQL database
+  const fetchActiveTerritories = useCallback(async () => {
+    try {
+      const res = await fetch('/api/territories/active');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.activeStates) && data.activeStates.length > 0) {
+          setActiveStates(data.activeStates);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not fetch active territories:", e);
+    }
+  }, []);
+
+  // Callback triggered when an admin approves/launches a state in the admin portal
+  const handleStateActivated = useCallback(async (stateCode: string, newActiveList?: string[]) => {
+    if (newActiveList && newActiveList.length > 0) {
+      setActiveStates(newActiveList);
+    } else {
+      setActiveStates((prev) => {
+        const upper = stateCode.toUpperCase();
+        return prev.includes(upper) ? prev : [...prev, upper];
+      });
+    }
+
+    // Immediately re-fetch live listings from PostgreSQL so newly activated properties show across all search and map views
+    try {
+      await db.fetchListings();
+      setAppData((prev) => ({
+        ...prev,
+        listings: db.getListings() as unknown as HousingListing[],
+      }));
+      setToastMessage(`State ${stateCode.toUpperCase()} activated. Live listings synchronized!`);
+    } catch (err) {
+      console.error("Failed to re-sync listings after state activation:", err);
+    }
+  }, []);
+
   // Initialize Database state from PostgreSQL & load current authenticated user profile
   useEffect(() => {
     const initializeDb = async () => {
@@ -962,6 +1034,7 @@ export default function App() {
           db.fetchHospitals(),
           db.fetchListings(),
           db.fetchAuditLogs(),
+          fetchActiveTerritories(),
         ]);
         setAppData({
           hospitals: db.getHospitals() as unknown as Hospital[],
@@ -975,7 +1048,7 @@ export default function App() {
       }
     };
     initializeDb();
-  }, []);
+  }, [fetchActiveTerritories]);
 
   useEffect(() => {
     fetchUserProfile();
@@ -1450,6 +1523,7 @@ export default function App() {
           setSelectedBookingDetail(b);
           setIsBookingDetailOpen(true);
         }}
+        unreadMessagesCount={unreadMessagesCount}
       />
 
       {/* Main Content Area - Seamlessly flush against sticky header */}
@@ -1618,6 +1692,8 @@ export default function App() {
                 bookingRequests={bookingRequests}
                 listings={appData.listings}
                 isDeveloper={false}
+                onStateActivated={handleStateActivated}
+                activeStates={activeStates}
               />
             ) : (
               <div className="flex-1 flex items-center justify-center p-6 bg-[#f8fafc] dark:bg-[#07101e]">
@@ -1671,46 +1747,126 @@ export default function App() {
 
           {/* Portal A: Credentialing Flow View */}
           {currentTab === "verification" && (
-            <>
-              {verificationStep === 1 && (
-                <IdentityStep
-                  data={verificationData}
-                  onChange={handleUpdateVerification}
-                  onNextStep={() => setVerificationStep(2)}
-                  onSelectStep={(step) => setVerificationStep(step)}
-                  isNightShiftMode={isNightShiftMode}
-                  onOpenAuth={(mode) => {
-                    setAuthModalMode(mode || "signup");
-                    setIsAuthModalOpen(true);
-                  }}
-                  isHostVerified={currentUser.isHostVerified}
-                  onExit={() => handleNavigateTab(currentUser.role === 'host' ? 'host-dashboard' : 'find-housing')}
-                />
-              )}
-              {verificationStep === 2 && (
-                <ContactStep
-                  data={verificationData}
-                  onChange={handleUpdateVerification}
-                  onNextStep={() => setVerificationStep(3)}
-                  onSelectStep={(step) => setVerificationStep(step)}
-                  isNightShiftMode={isNightShiftMode}
-                  onOpenPostmarkEmail={() =>
-                    handleNavigateTab("email-verification")
-                  }
-                  onOpenTwilioOtp={() => handleNavigateTab("phone-verification")}
-                />
-              )}
-              {verificationStep === 3 && (
-                <ClinicalLicenseStep
-                  data={verificationData}
-                  onChange={handleUpdateVerification}
-                  onNextStep={() => {}}
-                  onSelectStep={(step) => setVerificationStep(step)}
-                  isNightShiftMode={isNightShiftMode}
-                  onOpenSuccessModal={() => setIsSuccessModalOpen(true)}
-                />
-              )}
-            </>
+            currentUser.role !== "guest" ? (
+              currentUser.role === "host" ? (
+                <div className="flex-1 flex items-center justify-center p-6 bg-[#f8fafc] dark:bg-[#07101e]">
+                  <div className="max-w-md w-full bg-white dark:bg-[#0B1626] rounded-3xl p-8 border border-[rgba(11,37,89,0.1)] dark:border-[#233550] shadow-md text-center space-y-4">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-500/15 text-blue-700 dark:text-blue-400 mx-auto flex items-center justify-center">
+                      <Building2 className="w-7 h-7" aria-hidden="true" />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
+                        Property Host Safety Verification
+                      </span>
+                      <h2 className="text-xl font-bold text-[#001848] dark:text-white">
+                        Host Verification in Sanctuary Portal
+                      </h2>
+                      <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                        Property host identity and address verification is integrated directly into your Host Sanctuary Dashboard via Stripe Identity &amp; payout setup.
+                      </p>
+                    </div>
+                    <div className="pt-2 flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleNavigateTab("host-dashboard")}
+                        className="w-full py-2.5 px-4 rounded-full bg-[#005684] text-white text-xs font-bold hover:bg-[#00476d] cursor-pointer"
+                      >
+                        Go to Host Dashboard
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleNavigateTab("for-hosts")}
+                        className="w-full py-2 px-4 rounded-full border border-gray-200 dark:border-gray-700 text-xs font-bold hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 cursor-pointer"
+                      >
+                        View Host Standards
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {verificationStep === 1 && (
+                    <IdentityStep
+                      data={verificationData}
+                      onChange={handleUpdateVerification}
+                      onNextStep={() => setVerificationStep(2)}
+                      onSelectStep={(step) => setVerificationStep(step)}
+                      isNightShiftMode={isNightShiftMode}
+                      onOpenAuth={(mode) => {
+                        setAuthModalMode(mode || "signup");
+                        setIsAuthModalOpen(true);
+                      }}
+                      isHostVerified={currentUser.isHostVerified}
+                      onExit={() => handleNavigateTab(currentUser.role === 'host' ? 'host-dashboard' : 'find-housing')}
+                    />
+                  )}
+                  {verificationStep === 2 && (
+                    <ContactStep
+                      data={verificationData}
+                      onChange={handleUpdateVerification}
+                      onNextStep={() => setVerificationStep(3)}
+                      onSelectStep={(step) => setVerificationStep(step)}
+                      isNightShiftMode={isNightShiftMode}
+                      onOpenPostmarkEmail={() =>
+                        handleNavigateTab("email-verification")
+                      }
+                      onOpenTwilioOtp={() => handleNavigateTab("phone-verification")}
+                    />
+                  )}
+                  {verificationStep === 3 && (
+                    <ClinicalLicenseStep
+                      data={verificationData}
+                      onChange={handleUpdateVerification}
+                      onNextStep={() => {}}
+                      onSelectStep={(step) => setVerificationStep(step)}
+                      isNightShiftMode={isNightShiftMode}
+                      onOpenSuccessModal={() => setIsSuccessModalOpen(true)}
+                    />
+                  )}
+                </>
+              )
+            ) : (
+              <div className="flex-1 flex items-center justify-center p-6 bg-[#f8fafc] dark:bg-[#07101e]">
+                <div className="max-w-md w-full bg-white dark:bg-[#0B1626] rounded-3xl p-8 border border-[rgba(11,37,89,0.1)] dark:border-[#233550] shadow-md text-center space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-teal-500/15 text-teal-700 dark:text-teal-400 mx-auto flex items-center justify-center">
+                    <ShieldCheck className="w-7 h-7" aria-hidden="true" />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">
+                      Clinician Credentialing
+                    </span>
+                    <h2 className="text-xl font-bold text-[#001848] dark:text-white">
+                      Sign In to Verify Clinical License
+                    </h2>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                      Primary source license verification is reserved for registered traveling nurses and healthcare professionals. Sign in or create an account to verify.
+                    </p>
+                  </div>
+                  <div className="pt-2 flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthModalMode("signin");
+                        setIsAuthModalOpen(true);
+                      }}
+                      className="w-full py-2.5 px-4 rounded-full bg-[#001848] dark:bg-[#0A6FA8] text-white text-xs font-bold hover:bg-[#162e62] cursor-pointer"
+                    >
+                      Sign In
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthModalMode("signup");
+                        setIsAuthModalOpen(true);
+                      }}
+                      className="w-full py-2 px-4 rounded-full border border-gray-200 dark:border-gray-700 text-xs font-bold hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 cursor-pointer"
+                    >
+                      Create Clinician Account
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
           )}
 
           {/* Portal A: Home Page with Featured Sanctuary Listings (Screen A1) */}
@@ -1752,6 +1908,7 @@ export default function App() {
               onGoToHostPortal={() => handleNavigateTab("host-dashboard")}
               userRole={currentUser.role}
               userName={currentUser.name}
+              activeStates={activeStates}
             />
           )}
 
@@ -1884,6 +2041,9 @@ export default function App() {
         onOpenSupport={() => setIsSupportOpen(true)}
         onSelectTab={handleNavigateTab}
         isDeveloper={isDeveloper}
+        activeStates={activeStates}
+        currentTab={currentTab}
+        userRole={currentUser.role}
       />
 
       {/* Itemized Checkout Modal (Screen A4) - Lazy loaded only when requested */}

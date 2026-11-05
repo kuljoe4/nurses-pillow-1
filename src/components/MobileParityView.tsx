@@ -203,7 +203,7 @@ export const MobileParityView: React.FC<MobileParityViewProps> = ({
                         <label className="text-[11px] font-semibold opacity-70">Hospital or Agency Email</label>
                         <input
                           type="text"
-                          defaultValue="sarah.jenkins@ucsf.edu"
+                          placeholder="name@hospital.org"
                           className="w-full p-2.5 rounded-xl border border-black/10 dark:border-white/10 bg-transparent text-xs font-semibold mt-1"
                         />
                       </div>
@@ -212,7 +212,7 @@ export const MobileParityView: React.FC<MobileParityViewProps> = ({
                         <div className="relative">
                           <input
                             type={showPasswordMock ? "text" : "password"}
-                            defaultValue="••••••••••••"
+                            placeholder="Enter password"
                             className="w-full py-2.5 pl-2.5 pr-8 rounded-xl border border-black/10 dark:border-white/10 bg-transparent text-xs font-semibold mt-1"
                           />
                           <button

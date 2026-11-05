@@ -35,12 +35,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [mode, setMode] = useState<
     "signin" | "signup" | "forgot-password" | "reset-password"
   >(initialMode);
+  const [signupStep, setSignupStep] = useState<1 | 2>(1);
   const [role, setRole] = useState<UserRole>("nurse");
 
   // Forgot / Reset Password state
   const [resetToken, setResetToken] = useState(initialResetToken);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
+  // Form states - clean initial states, never prefilled
+  const [fullName, setFullName] = useState("");
+  const [specialty, setSpecialty] = useState("rn");
+  const [propertyType, setPropertyType] = useState("entire");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [quietHoursAgreed, setQuietHoursAgreed] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Sync mode when initialMode changes or modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+      setSignupStep(1);
+      setAuthError(null);
+      setSuccessMessage("");
+    }
+  }, [isOpen, initialMode]);
 
   // Handle Escape key to close modal
   useEffect(() => {
@@ -53,21 +78,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Form states
-  const [fullName, setFullName] = useState("");
-  const [specialty, setSpecialty] = useState("rn");
-  const [propertyType, setPropertyType] = useState("entire");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [quietHoursAgreed, setQuietHoursAgreed] = useState(true);
-  const [rememberDevice, setRememberDevice] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
-
-  // Password strength
+  // Password strength calculation
   const calculateStrength = (pwd: string) => {
     let score = 0;
     if (pwd.length >= 8) score++;
@@ -94,10 +105,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         body: JSON.stringify({ email, password, fullName, role }),
       });
 
-      const data = (res.headers.get('content-type')?.includes('application/json') ? await res.json() : {});
+      const data = res.headers.get("content-type")?.includes("application/json")
+        ? await res.json()
+        : {};
 
       if (!res.ok) {
-        throw new Error(data.error || "Registration failed");
+        throw new Error(data.error || "Registration failed. Please check your details.");
       }
 
       if (data.token) {
@@ -112,8 +125,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         data.user.is_nurse_verified,
         data.user.is_host_verified,
         data.user.identity_verified,
-        true // skipAutoNavigate so flow continues to email-verification
+        true // continue to email verification
       );
+
       if (onOpenEmailVerification) {
         onOpenEmailVerification(data.user.email);
       }
@@ -139,14 +153,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         body: JSON.stringify({ email }),
       });
 
-      const data = (res.headers.get('content-type')?.includes('application/json') ? await res.json() : {});
+      const data = res.headers.get("content-type")?.includes("application/json")
+        ? await res.json()
+        : {};
       if (!res.ok) {
-        throw new Error(data.error || "Failed to send reset link");
+        throw new Error(data.error || "Unable to send reset link.");
       }
 
       setSuccessMessage(
-        data.message ||
-          "If an account exists, a password reset link has been sent.",
+        data.message || "If an account exists, a password reset link has been sent."
       );
     } catch (err: any) {
       setAuthError(err.message || "An error occurred. Please try again.");
@@ -160,7 +175,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (isLoading) return;
 
     if (password !== confirmPassword) {
-      setAuthError("Passwords do not match");
+      setAuthError("Passwords do not match.");
       return;
     }
 
@@ -175,21 +190,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         body: JSON.stringify({ token: resetToken, newPassword: password }),
       });
 
-      const data = (res.headers.get('content-type')?.includes('application/json') ? await res.json() : {});
+      const data = res.headers.get("content-type")?.includes("application/json")
+        ? await res.json()
+        : {};
       if (!res.ok) {
-        throw new Error(data.error || "Failed to reset password");
+        throw new Error(data.error || "Failed to reset password.");
       }
 
-      setSuccessMessage(
-        "Password has been reset successfully. You can now sign in.",
-      );
-      // After successful reset, wait a bit and go to sign in
+      setSuccessMessage("Password reset successfully. You can now sign in.");
       setTimeout(() => {
         setMode("signin");
         setPassword("");
         setConfirmPassword("");
         setSuccessMessage("");
-      }, 3000);
+      }, 2500);
     } catch (err: any) {
       setAuthError(err.message || "An error occurred. Please try again.");
     } finally {
@@ -210,7 +224,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         body: JSON.stringify({ email, password }),
       });
 
-      const data = (res.headers.get('content-type')?.includes('application/json') ? await res.json() : {});
+      const data = res.headers.get("content-type")?.includes("application/json")
+        ? await res.json()
+        : {};
 
       if (res.status === 403 && data.requiresVerification) {
         if (onOpenEmailVerification) {
@@ -221,7 +237,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
 
       if (!res.ok) {
-        throw new Error(data.error || "Invalid credentials");
+        throw new Error(data.error || "Invalid email or password.");
       }
 
       if (data.token) {
@@ -239,7 +255,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       );
       onClose();
     } catch (err: any) {
-      setAuthError(err.message || "An error occurred during login.");
+      setAuthError(err.message || "Invalid email or password.");
     } finally {
       setIsLoading(false);
     }
@@ -247,7 +263,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[150] overflow-y-auto p-4 sm:p-6 pt-16 sm:pt-20 bg-black/65 backdrop-blur-xs flex justify-center items-start"
+      className="fixed inset-0 z-[150] overflow-y-auto p-4 sm:p-6 pt-12 sm:pt-16 bg-[#0B2559]/70 backdrop-blur-xs flex justify-center items-center"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose();
@@ -255,10 +271,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }}
     >
       <div
-        className={`w-full max-w-2xl my-auto rounded-3xl p-6 sm:p-8 shadow-lg relative border transition-all duration-200 ease-in-out ${
+        className={`w-full max-w-xl my-auto rounded-3xl p-6 sm:p-8 shadow-[0_20px_60px_-15px_rgba(11,37,89,0.18)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)] relative border transition-all duration-200 ease-in-out ${
           isNightShiftMode
             ? "bg-[#0E1A2E] border-[#233550] text-[#E6ECF7]"
-            : "bg-white border-[rgba(11,37,89,0.1)] text-[#001848]"
+            : "bg-white border-[rgba(11,37,89,0.08)] text-[#0B2559]"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -266,385 +282,557 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <button
           onClick={onClose}
           type="button"
-          aria-label="Close modal"
-          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-gray-500 hover:bg-[#EFF6FB] dark:hover:bg-[#182840] hover:text-[#0A6FA8] dark:hover:text-[#3E9AD1] focus-visible:ring-2 focus-visible:ring-[#0A6FA8] cursor-pointer"
+          aria-label="Close dialog"
+          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-gray-500 hover:bg-[#EFF6FB] dark:hover:bg-[#182840] hover:text-[#0A6FA8] dark:hover:text-[#3E9AD1] focus-visible:ring-2 focus-visible:ring-[#0A6FA8] focus-visible:outline-none cursor-pointer transition-colors"
         >
           <span className="material-symbols-outlined text-lg">close</span>
         </button>
 
-        {/* Authentication Error Banner */}
+        {/* Error Banner */}
         {authError && (
           <div
             role="alert"
-            className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2"
+            className="mb-4 p-3 rounded-xl bg-[#F4E2DC] text-[#A8452E] text-xs font-semibold flex items-center gap-2 border border-[#A8452E]/20"
           >
-            <span className="material-symbols-outlined text-[16px]">error</span>
-            {authError}
+            <span className="material-symbols-outlined text-[16px] shrink-0">error</span>
+            <span>{authError}</span>
           </div>
         )}
 
-        {/* Mode Switcher */}
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <div className="p-1 rounded-full bg-[#eaedff] dark:bg-[#15233a] flex items-center">
-            <button
-              type="button"
-              onClick={() => setMode("signup")}
-              className={`px-5 py-2 rounded-full text-xs font-bold transition-all duration-200 ease-in-out cursor-pointer ${
-                mode === "signup"
-                  ? "bg-[#001848] dark:bg-[#005684] text-white shadow-xs"
-                  : "text-[#404850] dark:text-[#c0c7d1]"
-              }`}
-            >
-              Create Sanctuary Account
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("signin")}
-              className={`px-5 py-2 rounded-full text-xs font-bold transition-all duration-200 ease-in-out cursor-pointer ${
-                mode === "signin"
-                  ? "bg-[#001848] dark:bg-[#005684] text-white shadow-xs"
-                  : "text-[#404850] dark:text-[#c0c7d1]"
-              }`}
-            >
-              Sign In
-            </button>
+        {/* Top Tab Mode Switcher (only for signup & signin) */}
+        {(mode === "signup" || mode === "signin") && (
+          <div className="flex items-center justify-center mb-6">
+            <div className="p-1 rounded-full bg-[#EFF6FB] dark:bg-[#15233a] flex items-center border border-[rgba(11,37,89,0.06)] dark:border-[#233550]">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("signup");
+                  setSignupStep(1);
+                  setAuthError(null);
+                }}
+                className={`px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-150 cursor-pointer ${
+                  mode === "signup"
+                    ? "bg-[#0B2559] dark:bg-[#0A6FA8] text-white shadow-xs"
+                    : "text-gray-600 dark:text-gray-300 hover:text-[#0B2559] dark:hover:text-white"
+                }`}
+              >
+                Create account
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("signin");
+                  setAuthError(null);
+                }}
+                className={`px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-150 cursor-pointer ${
+                  mode === "signin"
+                    ? "bg-[#0B2559] dark:bg-[#0A6FA8] text-white shadow-xs"
+                    : "text-gray-600 dark:text-gray-300 hover:text-[#0B2559] dark:hover:text-white"
+                }`}
+              >
+                Sign in
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Role Selection & Safe Clinical Sign-Up */}
-        {mode === "signup" && (
+        {/* SCREEN AU-01: SIGN UP — STEP 1: ROLE SELECTION */}
+        {mode === "signup" && signupStep === 1 && (
           <div>
             <div className="text-center mb-6">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#005684] dark:text-[#93ccff]">
-                Safe Clinical Onboarding
-              </span>
-              <h2 className="text-2xl font-bold tracking-tight mt-1">
-                Create your sanctuary account
+              <h2 className="text-2xl font-bold tracking-tight">
+                How will you use Nurses Pillow?
               </h2>
-              <p className="text-xs text-[#404850] dark:text-[#c0c7d1] mt-1">
-                Furnished housing curated for traveling healthcare professionals
-                and verified hosts.
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 max-w-md mx-auto">
+                Select your role to start with housing designed around hospital assignments.
               </p>
             </div>
 
-            {/* Role Selection Buttons (Fixed min-height to eliminate CLS) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+            {/* Two Clean Role Cards - Absolutely NO inputs on this screen */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
               <button
                 type="button"
                 onClick={() => setRole("nurse")}
-                className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all duration-200 ease-in-out min-h-[76px] flex flex-col justify-center ${
+                className={`p-4 rounded-2xl border text-left cursor-pointer transition-all duration-150 flex flex-col justify-between ${
                   role === "nurse"
-                    ? "border-[#005684] bg-[#0a6fa8] text-white shadow-sm"
-                    : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-gray-50 dark:hover:bg-white focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-white/5"
+                    ? "border-[#0A6FA8] bg-[#EFF6FB] dark:bg-[#0A6FA8]/15 ring-2 ring-[#0A6FA8] text-[#0B2559] dark:text-white shadow-sm"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-[#111e33] text-gray-700 dark:text-gray-200"
                 }`}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-xs flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[18px]">
-                      stethoscope
-                    </span>
-                    Clinician / Medical Traveler
-                  </span>
-                  {role === "nurse" && (
-                    <span className="material-symbols-outlined text-[16px]">
-                      check_circle
-                    </span>
-                  )}
+                <div>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-[#0A6FA8]/10 text-[#0A6FA8] dark:text-[#3E9AD1] flex items-center justify-center">
+                      <span className="material-symbols-outlined text-[20px]">
+                        stethoscope
+                      </span>
+                    </div>
+                    {role === "nurse" && (
+                      <span className="material-symbols-outlined text-[20px] text-[#0A6FA8] dark:text-[#3E9AD1]">
+                        check_circle
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="font-bold text-sm text-[#0B2559] dark:text-white">
+                    Traveling clinician
+                  </h3>
+                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-relaxed">
+                    Furnished homes near your hospital with protected day-sleeper quiet hours.
+                  </p>
                 </div>
-                <div className="text-[11px] opacity-90">
-                  RN, MD/DO, Allied Health • $0 Fees • 4–26 Wk Stays
+                <div className="pt-3 mt-3 border-t border-[rgba(11,37,89,0.06)] dark:border-gray-700/60 text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+                  $0 booking fees · 4–26 week stays
                 </div>
               </button>
 
               <button
                 type="button"
                 onClick={() => setRole("host")}
-                className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all duration-200 ease-in-out min-h-[76px] flex flex-col justify-center ${
+                className={`p-4 rounded-2xl border text-left cursor-pointer transition-all duration-150 flex flex-col justify-between ${
                   role === "host"
-                    ? "border-[#005684] bg-[#0a6fa8] text-white shadow-sm"
-                    : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-gray-50 dark:hover:bg-white focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-white/5"
+                    ? "border-[#0A6FA8] bg-[#EFF6FB] dark:bg-[#0A6FA8]/15 ring-2 ring-[#0A6FA8] text-[#0B2559] dark:text-white shadow-sm"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-[#111e33] text-gray-700 dark:text-gray-200"
                 }`}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-xs flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[18px]">
-                      roofing
-                    </span>
-                    Property Host / Owner
-                  </span>
-                  {role === "host" && (
-                    <span className="material-symbols-outlined text-[16px]">
-                      check_circle
-                    </span>
-                  )}
+                <div>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-[#0A6FA8]/10 text-[#0A6FA8] dark:text-[#3E9AD1] flex items-center justify-center">
+                      <span className="material-symbols-outlined text-[20px]">
+                        roofing
+                      </span>
+                    </div>
+                    {role === "host" && (
+                      <span className="material-symbols-outlined text-[20px] text-[#0A6FA8] dark:text-[#3E9AD1]">
+                        check_circle
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="font-bold text-sm text-[#0B2559] dark:text-white">
+                    Property host
+                  </h3>
+                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-relaxed">
+                    Host verified healthcare professionals with flexible mid-term stays.
+                  </p>
                 </div>
-                <div className="text-[11px] opacity-90">
-                  Entire Home or Private Room • ~95% Net Payout
+                <div className="pt-3 mt-3 border-t border-[rgba(11,37,89,0.06)] dark:border-gray-700/60 text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+                  Verified guests · 100% booking control
                 </div>
               </button>
             </div>
 
-            {/* Role Context Pill Banner (Fixed min-height prevents layout shift) */}
-            <div className="p-3.5 rounded-2xl bg-[#aff0db]/25 border border-[#aff0db]/60 text-xs text-[#195b4c] dark:text-[#aff0db] mb-5 flex items-start gap-2.5 min-h-[76px]">
-              <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">
-                verified
+            {/* Step 1 Action Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setAuthError(null);
+                setSignupStep(2);
+              }}
+              className="w-full py-3 rounded-full bg-[#0A6FA8] hover:bg-[#0C7EBF] active:bg-[#095C8C] text-white font-semibold text-xs shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-1.5 focus-visible:ring-2 focus-visible:ring-[#0A6FA8] focus-visible:outline-none"
+            >
+              <span>
+                {role === "nurse"
+                  ? "Continue as clinician"
+                  : "Continue as host"}
               </span>
-              <div className="flex-1">
-                <div className="font-bold leading-tight">
-                  {role === "nurse"
-                    ? "Healthcare Professional Privileges"
-                    : "Verified Property Host Privileges"}
-                </div>
-                <p className="mt-1 text-[11px] leading-relaxed">
-                  {role === "nurse"
-                    ? "Exclusive access to day-sleeper sanctuaries with zero-penalty contract cancellation safeguards."
-                    : "List entire properties or private furnished rooms with 100% booking autonomy and ~95% Net Payout."}
-                </p>
-              </div>
+              <span className="material-symbols-outlined text-[16px]">
+                arrow_forward
+              </span>
+            </button>
+
+            <div className="text-center mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("signin");
+                  setAuthError(null);
+                }}
+                className="text-xs text-gray-600 dark:text-gray-300 hover:text-[#0A6FA8] dark:hover:text-[#3E9AD1] transition-colors cursor-pointer"
+              >
+                Already have an account? <span className="font-semibold underline">Sign in</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* SCREEN AU-02: SIGN UP — STEP 2: ACCOUNT DETAILS */}
+        {mode === "signup" && signupStep === 2 && (
+          <div>
+            {/* Back Button to change role */}
+            <div className="flex items-center justify-between mb-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setSignupStep(1);
+                  setAuthError(null);
+                }}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-[#0A6FA8] dark:hover:text-[#3E9AD1] cursor-pointer transition-colors"
+              >
+                <span className="material-symbols-outlined text-[16px]">
+                  arrow_back
+                </span>
+                <span>Change role</span>
+              </button>
+
+              <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                {role === "nurse" ? "Clinician account" : "Host account"}
+              </span>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSignupSubmit} className="space-y-4 text-xs">
+            <div className="mb-5">
+              <h2 className="text-xl font-bold tracking-tight">
+                {role === "nurse"
+                  ? "Create your clinician account"
+                  : "Create your host account"}
+              </h2>
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
+                {role === "nurse"
+                  ? "Enter your details to view hospital stays and verified quiet housing."
+                  : "Enter your details to list your sanctuary for medical travelers."}
+              </p>
+            </div>
+
+            {/* Step 2 Form */}
+            <form onSubmit={handleSignupSubmit} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-bold mb-1">Full Legal Name</label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">
-                    badge
-                  </span>
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-transparent focus:outline-none focus:ring-1 focus:ring-[#005684]"
-                    placeholder="Sarah Jenkins"
-                    required
-                  />
-                </div>
+                <label htmlFor="reg-fullName" className="block font-semibold mb-1 text-gray-700 dark:text-gray-200">
+                  Full legal name
+                </label>
+                <input
+                  id="reg-fullName"
+                  name="name"
+                  type="text"
+                  autoComplete="name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-[#EFF6FB]/60 dark:bg-[#15233a] focus:bg-white dark:focus:bg-[#15233a] text-xs text-[#0B2559] dark:text-[#E6ECF7] outline-none focus:ring-2 focus:ring-[#0A6FA8] focus:border-transparent transition-colors"
+                  placeholder="e.g. Jane Doe"
+                  required
+                />
               </div>
 
-              {/* Matched slot for both roles eliminates vertical jump (CLS) */}
+              {/* Role-Specific Field */}
               {role === "nurse" ? (
                 <div>
-                  <label className="block font-bold mb-1">
-                    Specialty / Clinical Discipline
+                  <label htmlFor="reg-specialty" className="block font-semibold mb-1 text-gray-700 dark:text-gray-200">
+                    Clinical discipline
                   </label>
                   <select
+                    id="reg-specialty"
+                    name="specialty"
                     value={specialty}
                     onChange={(e) => setSpecialty(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#111e33] focus:outline-none"
+                    className="w-full px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#111e33] text-xs text-[#0B2559] dark:text-[#E6ECF7] outline-none focus:ring-2 focus:ring-[#0A6FA8] transition-colors"
                   >
-                    <option value="rn">
-                      Registered Nurse (RN / BSN / MSN — ICU, ER, OR, MedSurg,
-                      Telemetry)
-                    </option>
-                    <option value="physician">
-                      Physician (MD / DO — Travel Hospitalist, Intensivist,
-                      Fellow)
-                    </option>
-                    <option value="pa_np">
-                      Physician Assistant (PA) / Nurse Practitioner (NP / APRN)
-                    </option>
-                    <option value="therapy">
-                      Therapist (Physical PT / Occupational OT / Speech SLP)
-                    </option>
-                    <option value="allied">
-                      Allied Health / Respiratory Therapist (CRT, RRT) /
-                      Pharmacist
-                    </option>
+                    <option value="rn">Registered Nurse (RN)</option>
+                    <option value="physician">Physician (MD / DO)</option>
+                    <option value="pa_np">Nurse Practitioner (NP) / Physician Assistant (PA)</option>
+                    <option value="therapy">Physical, Occupational, or Speech Therapist</option>
+                    <option value="allied">Allied Health, Respiratory, or Pharmacist</option>
                   </select>
                 </div>
               ) : (
                 <div>
-                  <label className="block font-bold mb-1">
-                    Property Type / Housing Portfolio
+                  <label htmlFor="reg-propertyType" className="block font-semibold mb-1 text-gray-700 dark:text-gray-200">
+                    Property type
                   </label>
                   <select
+                    id="reg-propertyType"
+                    name="propertyType"
                     value={propertyType}
                     onChange={(e) => setPropertyType(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#111e33] focus:outline-none"
+                    className="w-full px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#111e33] text-xs text-[#0B2559] dark:text-[#E6ECF7] outline-none focus:ring-2 focus:ring-[#0A6FA8] transition-colors"
                   >
-                    <option value="entire">
-                      Entire Residential Home (Condo, Townhouse, Single-Family)
-                    </option>
-                    <option value="private_suite">
-                      Private Bedroom Suite with Dedicated En-Suite Bathroom
-                    </option>
-                    <option value="guest_house">
-                      In-Law Suite / Dedicated Accessory Dwelling Unit (ADU)
-                    </option>
-                    <option value="compound">
-                      Multi-Room Mid-Term Assignment Compound
-                    </option>
+                    <option value="entire">Entire residential home or condo</option>
+                    <option value="private_suite">Private suite with dedicated bathroom</option>
+                    <option value="guest_house">Guest house / detached ADU</option>
+                    <option value="compound">Multi-bedroom furnished property</option>
                   </select>
                 </div>
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1">
-                    Professional Email Address
+                  <label htmlFor="reg-email" className="block font-semibold mb-1 text-gray-700 dark:text-gray-200">
+                    Email address
                   </label>
                   <input
+                    id="reg-email"
+                    name="email"
                     type="email"
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-transparent focus:outline-none"
-                    placeholder="sarah.jenkins@alumni.duke.edu"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-[#EFF6FB]/60 dark:bg-[#15233a] focus:bg-white dark:focus:bg-[#15233a] text-xs text-[#0B2559] dark:text-[#E6ECF7] outline-none focus:ring-2 focus:ring-[#0A6FA8] focus:border-transparent transition-colors"
+                    placeholder="name@hospital.org"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold mb-1">
-                    Mobile Phone Number
+                  <label htmlFor="reg-phone" className="block font-semibold mb-1 text-gray-700 dark:text-gray-200">
+                    Mobile phone
                   </label>
                   <input
+                    id="reg-phone"
+                    name="tel"
                     type="tel"
+                    autoComplete="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-transparent focus:outline-none"
-                    placeholder="+1 (919) 555-0198"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-[#EFF6FB]/60 dark:bg-[#15233a] focus:bg-white dark:focus:bg-[#15233a] text-xs text-[#0B2559] dark:text-[#E6ECF7] outline-none focus:ring-2 focus:ring-[#0A6FA8] focus:border-transparent transition-colors"
+                    placeholder="(555) 000-0000"
                     required
                   />
                 </div>
               </div>
 
-              {/* Password with 4-Bar Visual Strength Meter */}
+              {/* Password with 4-Bar Strength Meter */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="font-bold">Create Secure Password</label>
+                  <label htmlFor="reg-password" className="font-semibold text-gray-700 dark:text-gray-200">
+                    Create password
+                  </label>
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="text-[11px] text-[#005684] dark:text-[#93ccff] font-semibold cursor-pointer"
+                    className="text-[11px] text-[#0A6FA8] dark:text-[#3E9AD1] font-medium hover:underline cursor-pointer"
                   >
-                    {showPassword ? "Hide" : "Show"}
+                    {showPassword ? "Hide password" : "Show password"}
                   </button>
                 </div>
                 <input
+                  id="reg-password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-transparent focus:outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-[#EFF6FB]/60 dark:bg-[#15233a] focus:bg-white dark:focus:bg-[#15233a] text-xs text-[#0B2559] dark:text-[#E6ECF7] outline-none focus:ring-2 focus:ring-[#0A6FA8] focus:border-transparent transition-colors"
+                  placeholder="At least 8 characters"
                   required
                 />
 
-                {/* 4-Bar Visual Strength Meter */}
-                <div className="mt-2 space-y-1.5">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-gray-400">Password Strength:</span>
-                    <span
-                      className={`font-bold ${
-                        strengthScore >= 3
-                          ? "text-[#195b4c]"
-                          : strengthScore === 2
-                            ? "text-amber-500"
-                            : "text-rose-500"
-                      }`}
-                    >
-                      {strengthScore >= 3
-                        ? "Strong"
-                        : strengthScore === 2
-                          ? "Moderate"
-                          : "Weak"}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-4 gap-1.5 h-1.5">
-                    {[1, 2, 3, 4].map((bar) => (
-                      <div
-                        key={bar}
-                        className={`h-full rounded-full transition-all duration-200 ease-in-out duration-300 ${
-                          strengthScore >= bar
-                            ? strengthScore >= 3
-                              ? "bg-[#195b4c]"
-                              : strengthScore === 2
-                                ? "bg-amber-500"
-                                : "bg-rose-500"
-                            : "bg-gray-200 dark:bg-gray-700"
+                {/* Password Strength Meter */}
+                {password.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-gray-500 dark:text-gray-400">Password strength:</span>
+                      <span
+                        className={`font-semibold ${
+                          strengthScore >= 3
+                            ? "text-[#2F6E5E]"
+                            : strengthScore === 2
+                            ? "text-[#B9822E]"
+                            : "text-[#A8452E]"
                         }`}
-                      />
-                    ))}
+                      >
+                        {strengthScore >= 3
+                          ? "Strong"
+                          : strengthScore === 2
+                          ? "Fair"
+                          : "Weak"}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-1.5 h-1">
+                      {[1, 2, 3, 4].map((bar) => (
+                        <div
+                          key={bar}
+                          className={`h-full rounded-full transition-all duration-200 ${
+                            strengthScore >= bar
+                              ? strengthScore >= 3
+                                ? "bg-[#2F6E5E]"
+                                : strengthScore === 2
+                                ? "bg-[#B9822E]"
+                                : "bg-[#A8452E]"
+                              : "bg-gray-200 dark:bg-gray-700"
+                          }`}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Day-Sleeper Protocol Agreement */}
-              <label className="flex items-start gap-2 text-xs text-[#404850] dark:text-[#c0c7d1] cursor-pointer pt-1">
+              <label className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-300 cursor-pointer pt-1">
                 <input
                   type="checkbox"
                   checked={quietHoursAgreed}
                   onChange={(e) => setQuietHoursAgreed(e.target.checked)}
-                  className="mt-0.5 rounded accent-[#005684]"
+                  className="mt-0.5 rounded accent-[#0A6FA8]"
                   required
                 />
-                <span>
-                  I agree to the Terms of Service,{" "}
-                  <strong>
-                    Day-Sleeper Quiet Hours Protocol (8:00 AM – 5:00 PM)
-                  </strong>
-                  , and Privacy Policy.
+                <span className="leading-relaxed">
+                  I agree to the Terms of Service, Privacy Policy, and Day-Sleeper Quiet Hours Protocol (8:00 AM – 5:00 PM).
                 </span>
               </label>
 
               <button
                 type="submit"
-                disabled={isLoading}
-                className="w-full py-3.5 rounded-full bg-[#001848] hover:bg-[#162e62] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#162e62] text-white font-bold text-xs shadow-md transition-all duration-200 ease-in-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                disabled={isLoading || !quietHoursAgreed}
+                className="w-full py-3 rounded-full bg-[#0A6FA8] hover:bg-[#0C7EBF] active:bg-[#095C8C] text-white font-semibold text-xs shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 focus-visible:ring-2 focus-visible:ring-[#0A6FA8] focus-visible:outline-none"
               >
                 {isLoading && (
                   <span className="material-symbols-outlined text-[16px] animate-spin">
                     progress_activity
                   </span>
                 )}
-                {role === "nurse"
-                  ? "Create Clinician Account"
-                  : "Create Property Host Account"}
+                <span>
+                  {role === "nurse"
+                    ? "Create clinician account"
+                    : "Create host account"}
+                </span>
               </button>
             </form>
           </div>
         )}
 
-        {/* Forgot Password Flow */}
-        {mode === "forgot-password" && (
-          <div className="flex-1 overflow-y-auto px-6 pb-6 pt-4">
-            <h2 className="text-xl font-black text-[#001848] mb-2 font-display">
-              Reset Your Password
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 text-xs mb-6">
-              Enter your email address and we'll send you a link to reset your
-              password.
-            </p>
+        {/* SCREEN AU-03: SIGN IN */}
+        {mode === "signin" && (
+          <div>
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold tracking-tight">
+                Welcome back
+              </h2>
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                Sign in to manage your clinical stays or property listings.
+              </p>
+            </div>
 
-            {authError && (
-              <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg flex items-start gap-2 text-xs border border-red-100">
-                <span className="material-symbols-outlined text-[16px] mt-0.5">
-                  error
-                </span>
-                <p>{authError}</p>
+            <form onSubmit={handleSigninSubmit} className="space-y-4 text-xs">
+              <div>
+                <label htmlFor="login-email" className="block font-semibold mb-1 text-gray-700 dark:text-gray-200">
+                  Email address
+                </label>
+                <input
+                  id="login-email"
+                  name="email"
+                  type="email"
+                  autoComplete="username"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-[#EFF6FB]/60 dark:bg-[#15233a] focus:bg-white dark:focus:bg-[#15233a] text-xs text-[#0B2559] dark:text-[#E6ECF7] outline-none focus:ring-2 focus:ring-[#0A6FA8] focus:border-transparent transition-colors"
+                  placeholder="name@hospital.org"
+                  required
+                />
               </div>
-            )}
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label htmlFor="login-password" className="font-semibold text-gray-700 dark:text-gray-200">
+                    Password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("forgot-password");
+                      setAuthError(null);
+                      setSuccessMessage("");
+                    }}
+                    className="text-[11px] text-[#0A6FA8] dark:text-[#3E9AD1] hover:underline cursor-pointer"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    id="login-password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-[#EFF6FB]/60 dark:bg-[#15233a] focus:bg-white dark:focus:bg-[#15233a] text-xs text-[#0B2559] dark:text-[#E6ECF7] outline-none focus:ring-2 focus:ring-[#0A6FA8] focus:border-transparent transition-colors"
+                    placeholder="Enter your password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">
+                      {showPassword ? "visibility_off" : "visibility"}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer select-none text-gray-600 dark:text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={rememberDevice}
+                  onChange={(e) => setRememberDevice(e.target.checked)}
+                  className="rounded accent-[#0A6FA8]"
+                />
+                <span>Remember this device for 30 days</span>
+              </label>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3 rounded-full bg-[#0A6FA8] hover:bg-[#0C7EBF] active:bg-[#095C8C] text-white font-semibold text-xs shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 focus-visible:ring-2 focus-visible:ring-[#0A6FA8] focus-visible:outline-none"
+              >
+                {isLoading && (
+                  <span className="material-symbols-outlined text-[16px] animate-spin">
+                    progress_activity
+                  </span>
+                )}
+                <span>Sign in</span>
+              </button>
+
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("signup");
+                    setSignupStep(1);
+                    setAuthError(null);
+                  }}
+                  className="text-xs text-gray-600 dark:text-gray-300 hover:text-[#0A6FA8] dark:hover:text-[#3E9AD1] transition-colors cursor-pointer"
+                >
+                  New to Nurses Pillow? <span className="font-semibold underline">Create an account</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* SCREEN AU-04: FORGOT PASSWORD */}
+        {mode === "forgot-password" && (
+          <div>
+            <div className="text-center mb-6">
+              <h2 className="text-xl font-bold tracking-tight">
+                Reset your password
+              </h2>
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 max-w-sm mx-auto">
+                Enter your account email and we'll send you a link to reset your password.
+              </p>
+            </div>
 
             {successMessage && (
-              <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-lg flex items-start gap-2 text-xs border border-green-100">
-                <span className="material-symbols-outlined text-[16px] mt-0.5">
+              <div className="mb-4 p-3 bg-[#E1EFE9] text-[#2F6E5E] rounded-xl flex items-start gap-2 text-xs border border-[#2F6E5E]/20">
+                <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">
                   check_circle
                 </span>
                 <p>{successMessage}</p>
               </div>
             )}
 
-            <form
-              onSubmit={handleForgotPasswordSubmit}
-              className="space-y-4 text-xs"
-            >
+            <form onSubmit={handleForgotPasswordSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block font-bold mb-1">Email Address</label>
+                <label htmlFor="forgot-email" className="block font-semibold mb-1 text-gray-700 dark:text-gray-200">
+                  Email address
+                </label>
                 <input
+                  id="forgot-email"
+                  name="email"
                   type="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-transparent focus:outline-none"
-                  placeholder="sarah.jenkins@alumni.duke.edu"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-[#EFF6FB]/60 dark:bg-[#15233a] focus:bg-white dark:focus:bg-[#15233a] text-xs text-[#0B2559] dark:text-[#E6ECF7] outline-none focus:ring-2 focus:ring-[#0A6FA8] focus:border-transparent transition-colors"
+                  placeholder="name@hospital.org"
                   required
                 />
               </div>
@@ -652,14 +840,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3.5 rounded-full bg-[#001848] hover:bg-[#162e62] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#162e62] text-white font-bold text-xs shadow-md transition-all duration-200 ease-in-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                className="w-full py-3 rounded-full bg-[#0A6FA8] hover:bg-[#0C7EBF] active:bg-[#095C8C] text-white font-semibold text-xs shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 focus-visible:ring-2 focus-visible:ring-[#0A6FA8] focus-visible:outline-none"
               >
                 {isLoading && (
                   <span className="material-symbols-outlined text-[16px] animate-spin">
                     progress_activity
                   </span>
                 )}
-                Send Reset Link
+                <span>Send reset link</span>
               </button>
 
               <button
@@ -669,61 +857,57 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   setAuthError(null);
                   setSuccessMessage("");
                 }}
-                className="w-full text-center text-xs font-bold text-[#005684] hover:underline cursor-pointer mt-4"
+                className="w-full text-center text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-[#0A6FA8] dark:hover:text-[#3E9AD1] cursor-pointer pt-2"
               >
-                Back to Sign In
+                Back to sign in
               </button>
             </form>
           </div>
         )}
 
-        {/* Reset Password Flow */}
+        {/* SCREEN AU-05: RESET PASSWORD */}
         {mode === "reset-password" && (
-          <div className="flex-1 overflow-y-auto px-6 pb-6 pt-4">
-            <h2 className="text-xl font-black text-[#001848] mb-2 font-display">
-              Create New Password
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 text-xs mb-6">
-              Please enter your new password below.
-            </p>
-
-            {authError && (
-              <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg flex items-start gap-2 text-xs border border-red-100">
-                <span className="material-symbols-outlined text-[16px] mt-0.5">
-                  error
-                </span>
-                <p>{authError}</p>
-              </div>
-            )}
+          <div>
+            <div className="text-center mb-6">
+              <h2 className="text-xl font-bold tracking-tight">
+                Create new password
+              </h2>
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                Enter your new password below.
+              </p>
+            </div>
 
             {successMessage && (
-              <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-lg flex items-start gap-2 text-xs border border-green-100">
-                <span className="material-symbols-outlined text-[16px] mt-0.5">
+              <div className="mb-4 p-3 bg-[#E1EFE9] text-[#2F6E5E] rounded-xl flex items-start gap-2 text-xs border border-[#2F6E5E]/20">
+                <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">
                   check_circle
                 </span>
                 <p>{successMessage}</p>
               </div>
             )}
 
-            <form
-              onSubmit={handleResetPasswordSubmit}
-              className="space-y-4 text-xs"
-            >
+            <form onSubmit={handleResetPasswordSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block font-bold mb-1">New Password</label>
+                <label htmlFor="reset-new-password" className="block font-semibold mb-1 text-gray-700 dark:text-gray-200">
+                  New password
+                </label>
                 <div className="relative">
                   <input
+                    id="reset-new-password"
+                    name="password"
                     type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full p-2.5 pr-9 rounded-xl border border-gray-300 dark:border-gray-700 bg-transparent focus:outline-none"
+                    className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-[#EFF6FB]/60 dark:bg-[#15233a] focus:bg-white dark:focus:bg-[#15233a] text-xs text-[#0B2559] dark:text-[#E6ECF7] outline-none focus:ring-2 focus:ring-[#0A6FA8] focus:border-transparent transition-colors"
+                    placeholder="At least 8 characters"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     <span className="material-symbols-outlined text-[16px]">
                       {showPassword ? "visibility_off" : "visibility"}
@@ -733,21 +917,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
 
               <div>
-                <label className="block font-bold mb-1">
-                  Confirm New Password
+                <label htmlFor="reset-confirm-password" className="block font-semibold mb-1 text-gray-700 dark:text-gray-200">
+                  Confirm new password
                 </label>
                 <div className="relative">
                   <input
+                    id="reset-confirm-password"
+                    name="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full p-2.5 pr-9 rounded-xl border border-gray-300 dark:border-gray-700 bg-transparent focus:outline-none"
+                    className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-[#EFF6FB]/60 dark:bg-[#15233a] focus:bg-white dark:focus:bg-[#15233a] text-xs text-[#0B2559] dark:text-[#E6ECF7] outline-none focus:ring-2 focus:ring-[#0A6FA8] focus:border-transparent transition-colors"
+                    placeholder="Re-enter your new password"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                   >
                     <span className="material-symbols-outlined text-[16px]">
                       {showConfirmPassword ? "visibility_off" : "visibility"}
@@ -759,144 +948,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3.5 rounded-full bg-[#001848] hover:bg-[#162e62] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#162e62] text-white font-bold text-xs shadow-md transition-all duration-200 ease-in-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                className="w-full py-3 rounded-full bg-[#0A6FA8] hover:bg-[#0C7EBF] active:bg-[#095C8C] text-white font-semibold text-xs shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 focus-visible:ring-2 focus-visible:ring-[#0A6FA8] focus-visible:outline-none"
               >
                 {isLoading && (
                   <span className="material-symbols-outlined text-[16px] animate-spin">
                     progress_activity
                   </span>
                 )}
-                Reset Password
+                <span>Reset password</span>
               </button>
             </form>
           </div>
         )}
 
-        {/* SCREEN AU-03: Clinician & Host Sign-In */}
-        {mode === "signin" && (
-          <div>
-            <div className="text-center mb-6">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#005684] dark:text-[#93ccff]">
-                Secure Sanctuary Access
-              </span>
-              <h2 className="text-2xl font-bold tracking-tight mt-1">
-                Sign in to Nurses Pillow
-              </h2>
-              <p className="text-xs text-[#404850] dark:text-[#c0c7d1] mt-1">
-                Access your clinical assignment housing or verified host
-                dashboard.
-              </p>
-            </div>
-
-            {/* Form */}
-            <form onSubmit={handleSigninSubmit} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-bold mb-1">
-                  Work or Personal Email
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-transparent focus:outline-none"
-                  placeholder="sarah.jenkins@alumni.duke.edu"
-                  required
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="font-bold">Password</label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode("forgot-password");
-                      setAuthError(null);
-                      setSuccessMessage("");
-                    }}
-                    className="text-[11px] text-[#005684] hover:underline cursor-pointer"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full p-2.5 pr-9 rounded-xl border border-gray-300 dark:border-gray-700 bg-transparent focus:outline-none"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">
-                      {showPassword ? "visibility_off" : "visibility"}
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={rememberDevice}
-                  onChange={(e) => setRememberDevice(e.target.checked)}
-                  className="rounded accent-[#005684]"
-                />
-                <span>
-                  Remember this device for 30 days (hospital devices only)
-                </span>
-              </label>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-3.5 rounded-full bg-[#001848] hover:bg-[#162e62] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#162e62] text-white font-bold text-xs shadow-md transition-all duration-200 ease-in-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-              >
-                {isLoading && (
-                  <span className="material-symbols-outlined text-[16px] animate-spin">
-                    progress_activity
-                  </span>
-                )}
-                Sign In to Sanctuary Hub
-              </button>
-
-              {/* Standard practice administrator access pathway */}
-              <div className="pt-2 text-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail("admin@nursespillow.com");
-                    setPassword("AdminSecure2026!");
-                  }}
-                  className="text-[11px] text-gray-500 dark:text-gray-400 hover:text-[#0A6FA8] dark:hover:text-[#93ccff] transition-colors cursor-pointer"
-                >
-                  Hospital system or operations administrator? Sign in here
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {/* Security & Verification Notice */}
-        <div className="mt-6 pt-4 border-t border-gray-100 dark:border-[#233550] flex flex-col items-center justify-center gap-1.5 text-center text-xs text-gray-500 dark:text-gray-400">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[16px] text-[#0A6FA8] dark:text-[#3E9AD1]">
-              verified_user
-            </span>
-            <span>
-              Protected by 256-bit SSL encryption &amp; Nursys® healthcare license
-              verification.
-            </span>
-          </div>
-          {mode === "signup" && (
-            <p className="text-[10px] text-gray-400 dark:text-gray-500">
-              Public registration is limited to clinicians and property hosts. Administrator access is provisioned securely through standard governance channels.
-            </p>
-          )}
+        {/* Quiet, Clean Trust & Security Notice */}
+        <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800 text-center text-[11px] text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1.5">
+          <span className="material-symbols-outlined text-[15px] text-[#0A6FA8] dark:text-[#3E9AD1]">
+            verified_user
+          </span>
+          <span>
+            256-bit encryption · Clinician credentials verified directly with state licensing boards
+          </span>
         </div>
       </div>
     </div>
