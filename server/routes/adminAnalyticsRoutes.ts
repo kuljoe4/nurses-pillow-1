@@ -217,7 +217,7 @@ router.put('/settings/platform-fee', authenticateToken, requireAdmin, async (req
     }
 
     const currentFeeRes = await db.query('SELECT host_fee_percent FROM platform_fee_settings WHERE id = 1');
-    const prevFee = parseFloat(currentFeeRes.rows[0]?.host_fee_percent || '5.00');
+    const prevFee = parseFloat(currentFeeRes.rows[0]?.host_fee_percent ?? '5.00');
 
     // Update settings
     await db.query(`
