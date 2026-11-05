@@ -5,6 +5,7 @@ import { AdminSupplyDensityView } from './AdminSupplyDensityView';
 import { AdminAnalyticsDashboard } from './AdminAnalyticsDashboard';
 import { AdminActivityLogView } from './AdminActivityLogView';
 import { AdminPagination } from './AdminPagination';
+import { AdminResponsiveTableLabels } from './AdminResponsiveTableLabels';
 
 interface AdminPortalViewProps {
   currentUser?: any;
@@ -305,6 +306,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         isNightShiftMode ? 'text-[#E6ECF7]' : 'text-[#0B2559]'
       }`}
     >
+      <AdminResponsiveTableLabels />
       {/* Header & Role Identification */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
@@ -465,7 +467,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               </span>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto admin-responsive-table">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-400 font-bold uppercase text-[10px]">
