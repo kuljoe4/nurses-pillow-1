@@ -96,7 +96,8 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
       const url = st && st !== 'ALL'
         ? `/api/admin/listings/waitlist?state=${st}`
         : '/api/admin/listings/waitlist';
-      const res = await fetch(url);
+      const token = localStorage.getItem('np_auth_token') || sessionStorage.getItem('np_auth_token');
+      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (res.ok) {
         const data = await res.json();
         setWaitlistListings(data);
