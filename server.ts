@@ -1815,6 +1815,7 @@ async function startServer() {
         FROM listings l 
         LEFT JOIN users u ON l.host_id = u.id
         WHERE l.is_published = true
+          AND EXISTS (SELECT 1 FROM active_territories t WHERE UPPER(t.state_code) = UPPER(l.state) AND t.is_active = true)
       `);
       const mapped = result.rows.map(mapDbListingToFrontend);
       res.json(mapped);
