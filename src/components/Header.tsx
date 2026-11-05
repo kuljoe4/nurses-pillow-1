@@ -891,7 +891,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Sliding Container */}
         <div
-          className={`relative w-full max-w-lg mx-auto bg-white dark:bg-[#0E1A2E] border-b border-gray-200 dark:border-[#233550] shadow-[0_12px_36px_rgba(11,37,89,0.14)] transition-all duration-200 ease-out transform flex flex-col rounded-b-2xl overflow-hidden z-10 ${
+          className={`relative w-full max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto bg-white dark:bg-[#0E1A2E] border-b border-gray-200 dark:border-[#233550] shadow-[0_12px_36px_rgba(11,37,89,0.14)] transition-all duration-200 ease-out transform flex flex-col rounded-b-2xl overflow-hidden z-10 ${
             isMobileMenuOpen
               ? 'translate-y-0 opacity-100 scale-100'
               : '-translate-y-4 opacity-0 scale-[0.98]'
