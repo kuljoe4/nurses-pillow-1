@@ -181,6 +181,27 @@ export const db = {
           CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id);
           CREATE INDEX IF NOT EXISTS idx_favorites_listing ON favorites(listing_id);
 
+          CREATE TABLE IF NOT EXISTS platform_fee_settings (
+            id INTEGER PRIMARY KEY,
+            host_fee_percent NUMERIC(5, 2) NOT NULL DEFAULT 5.00,
+            traveler_fee_percent NUMERIC(5, 2) NOT NULL DEFAULT 0.00,
+            updated_by VARCHAR(255),
+            updated_at TIMESTAMPTZ DEFAULT NOW(),
+            CONSTRAINT platform_fee_percent_range CHECK (host_fee_percent >= 0 AND host_fee_percent <= 15)
+          );
+          INSERT INTO platform_fee_settings (id, host_fee_percent, traveler_fee_percent)
+          VALUES (1, 5.00, 0.00)
+          ON CONFLICT (id) DO NOTHING;
+          CREATE TABLE IF NOT EXISTS fee_change_logs (
+            id BIGSERIAL PRIMARY KEY,
+            admin_id VARCHAR(255) NOT NULL,
+            previous_fee_percent NUMERIC(5, 2) NOT NULL,
+            new_fee_percent NUMERIC(5, 2) NOT NULL,
+            effective_at TIMESTAMPTZ DEFAULT NOW(),
+            hosts_notified_count INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+          );
+
           ALTER TABLE bookings
           ADD COLUMN IF NOT EXISTS start_date DATE,
           ADD COLUMN IF NOT EXISTS end_date DATE,
@@ -194,6 +215,7 @@ export const db = {
           ADD COLUMN IF NOT EXISTS deposit_hold_amount NUMERIC DEFAULT 0,
           ADD COLUMN IF NOT EXISTS gross_booking_value NUMERIC DEFAULT 0,
           ADD COLUMN IF NOT EXISTS host_platform_fee_percent NUMERIC DEFAULT 5.00,
+          ALTER COLUMN host_platform_fee_percent SET DEFAULT 5.00,
           ADD COLUMN IF NOT EXISTS host_platform_fee_amount NUMERIC DEFAULT 0,
           ADD COLUMN IF NOT EXISTS host_payout_amount NUMERIC DEFAULT 0,
           ADD COLUMN IF NOT EXISTS cancellation_policy_agreed VARCHAR(50) DEFAULT 'flexible',

@@ -43,6 +43,18 @@ const isLiveKey = Boolean(
   !process.env.STRIPE_SECRET_KEY.includes('test_mock')
 );
 
+
+async function getCurrentPlatformFeePercent(): Promise<number> {
+  try {
+    const result = await db.query('SELECT host_fee_percent FROM platform_fee_settings WHERE id = 1');
+    const percent = Number(result.rows[0]?.host_fee_percent);
+    return Number.isFinite(percent) && percent >= 0 && percent <= 15 ? percent : 5;
+  } catch (error) {
+    console.warn('[Platform Fee] Could not load saved fee; using 5% launch default.', error);
+    return 5;
+  }
+}
+
 const BookingSchema = z.object({
   id: z.string().optional(),
   traveler_id: z.string().min(1),
@@ -2061,7 +2073,8 @@ async function startServer() {
       const { daysCount, accommodationTotal } = calculateStayPricing(monthlyRent, start_date, end_date);
 
       const totalPreAuthAmount = Math.round((accommodationTotal + cleaningFee + petFee) * 100);
-      const platformFeeAmount = Math.round(accommodationTotal * 0.05 * 100);
+      const platformFeePercent = await getCurrentPlatformFeePercent();
+      const platformFeeAmount = Math.round(accommodationTotal * (platformFeePercent / 100) * 100);
 
       // Check if host has a connected account to create transfer data
       const hostRes = await db.query('SELECT stripe_connected_account_id, stripe_payouts_enabled FROM users WHERE id = $1', [hostId]);
@@ -2117,11 +2130,11 @@ async function startServer() {
           check_in_date, check_out_date, start_date, end_date,
           duration_weeks, status, total_rent, base_monthly_rent,
           cleaning_fee, pet_fee, gross_booking_value,
-          host_platform_fee_amount, host_payout_amount,
+          host_platform_fee_amount, host_platform_fee_percent, host_payout_amount,
           cancellation_policy_agreed, stripe_payment_intent_id,
           traveler_name, listing_title, hospital_name
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
         RETURNING *;
         `,
         [
@@ -2142,6 +2155,7 @@ async function startServer() {
           petFee,
           (totalPreAuthAmount / 100), // gross_booking_value
           (platformFeeAmount / 100), // host_platform_fee_amount
+          platformFeePercent,
           ((totalPreAuthAmount - platformFeeAmount) / 100), // host_payout_amount
           'flexible',
           paymentIntent.id,
@@ -2319,14 +2333,15 @@ async function startServer() {
       }
 
       const grossCharge = monthlyRent + cleaningFee;
-      const feeRate = 0.05;
-      const platformFeeAmount = Number((grossCharge * feeRate).toFixed(2));
-      const hostNetPayout = Number((grossCharge * (1 - feeRate)).toFixed(2));
+      const platformFeePercent = await getCurrentPlatformFeePercent();
+      const feeRate = platformFeePercent / 100;
+      const platformFeeAmount = Number((monthlyRent * feeRate).toFixed(2));
+      const hostNetPayout = Number((grossCharge - platformFeeAmount).toFixed(2));
 
       booking.monthly_rent = monthlyRent;
       booking.total_traveler_charged = booking.total_traveler_charged || grossCharge;
-      booking.platform_fee_amount = booking.platform_fee_amount || platformFeeAmount;
-      booking.host_net_payout = booking.host_net_payout || hostNetPayout;
+      booking.platform_fee_amount = platformFeeAmount;
+      booking.host_net_payout = hostNetPayout;
       booking.host_id = booking.host_id || hostId;
       booking.status = 'pending_host_approval';
 
@@ -2362,10 +2377,10 @@ async function startServer() {
           check_in_date, check_out_date, start_date, end_date,
           duration_weeks, status, total_rent, base_monthly_rent,
           cleaning_fee, pet_fee, gross_booking_value,
-          host_platform_fee_amount, host_payout_amount,
+          host_platform_fee_amount, host_platform_fee_percent, host_payout_amount,
           cancellation_policy_agreed, traveler_name, listing_title, hospital_name
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
         RETURNING *;
       `,
         [
@@ -2386,6 +2401,7 @@ async function startServer() {
           0,
           booking.total_traveler_charged,
           booking.platform_fee_amount,
+          platformFeePercent,
           booking.host_net_payout,
           'flexible',
           booking.traveler_name,
@@ -2762,7 +2778,10 @@ async function startServer() {
       const cleaningFeeCents = Math.round(Number(booking.cleaning_fee || 0) * 100);
       const petFeeCents = Math.round(Number(booking.pet_fee || 0) * 100);
 
-      const platformFeeCents = Math.round(accommodationCents * 0.05); // 5% fee on rent only
+      const storedFeePercent = booking.host_platform_fee_percent == null
+        ? await getCurrentPlatformFeePercent()
+        : Number(booking.host_platform_fee_percent);
+      const platformFeeCents = Math.round(accommodationCents * (storedFeePercent / 100));
       const totalChargeCents = accommodationCents + cleaningFeeCents + petFeeCents; // $0 deposit hold
 
       const paymentIntent = await stripe.paymentIntents.create({
@@ -2816,7 +2835,7 @@ async function startServer() {
         const hostConnectedAccountId = hostRes.rows[0]?.stripe_connected_account_id;
 
         if (intentId.startsWith('pi_sandbox_') || intentId.startsWith('pi_test_') || !isLiveKey) {
-          console.log(`[Stripe Capture] Sandbox pre-authorization hold captured for booking ${id} (Direct charge to host with 5% platform split)`);
+          console.log(`[Stripe Capture] Sandbox pre-authorization hold captured for booking ${id} (Direct charge to host using the booking's recorded platform rate)`);
         } else {
           try {
             if (hostConnectedAccountId) {
@@ -3077,6 +3096,15 @@ async function startServer() {
   });
 
   // Stripe Payment Intent (Split Payment & Escrow Hold)
+  app.get('/api/platform/fee', async (_req: Request, res: Response) => {
+    try {
+      const hostFeePercent = await getCurrentPlatformFeePercent();
+      res.json({ hostFeePercent, travelerFeePercent: 0, capMinPercent: 0, capMaxPercent: 15 });
+    } catch {
+      res.status(500).json({ error: 'Unable to load platform fee settings' });
+    }
+  });
+
   app.post('/api/stripe/payment-intent', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
     // ... existing POST handler logic
     try {
@@ -3105,8 +3133,9 @@ async function startServer() {
       const monthlyRent = Number(listing.monthly_rent) || 0;
       const cleaningFee = Number(listing.cleaning_fee) || 0;
       const grossCharge = monthlyRent + cleaningFee;
-      const feeRate = 0.05; // Enforce platform fee server-side
-      const platformFee = Math.round(grossCharge * feeRate * 100);
+      const platformFeePercent = await getCurrentPlatformFeePercent();
+      const feeRate = platformFeePercent / 100;
+      const platformFee = Math.round(monthlyRent * feeRate * 100);
       const totalAmount = Math.round(grossCharge * 100);
 
       try {
@@ -3624,7 +3653,7 @@ async function startServer() {
         const { id } = req.params;
 
         if (id.startsWith('pi_sandbox_') || id.startsWith('pi_test_') || !isLiveKey) {
-          console.log(`[Stripe Capture] Captured sandbox hold for PaymentIntent: ${id} with 5% platform split`);
+          console.log(`[Stripe Capture] Captured sandbox hold for PaymentIntent: ${id} using the configured platform rate`);
           return res.json({
             success: true,
             paymentIntent: {

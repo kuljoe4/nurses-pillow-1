@@ -78,7 +78,15 @@ export function mapDbBookingToFrontend(b: any) {
   const petFee = Number(b.pet_fee || 0);
   const durationWeeks = Number(b.duration_weeks || b.assignment_duration_weeks || 13);
   const totalInitialCharge = Number(b.gross_booking_value || b.total_rent || (monthlyRent + cleaningFee + petFee));
-  const hostNetPayout = Number(b.host_payout_amount || (totalInitialCharge * 0.95));
+  const platformFeePercent = b.host_platform_fee_percent == null ? 5 : Number(b.host_platform_fee_percent);
+  const storedPlatformFeeAmount = Number(b.host_platform_fee_amount);
+  const platformFeeAmount = b.host_platform_fee_amount == null || (storedPlatformFeeAmount === 0 && platformFeePercent > 0)
+    ? Number((monthlyRent * (platformFeePercent / 100)).toFixed(2))
+    : storedPlatformFeeAmount;
+  const storedHostPayout = Number(b.host_payout_amount);
+  const hostNetPayout = b.host_payout_amount == null || (storedHostPayout === 0 && totalInitialCharge > 0)
+    ? Number((totalInitialCharge - platformFeeAmount).toFixed(2))
+    : storedHostPayout;
 
   return {
     id: b.id,
@@ -100,6 +108,8 @@ export function mapDbBookingToFrontend(b: any) {
     travelerFee: 0,
     totalInitialCharge,
     hostNetPayout,
+    platformFeeAmount,
+    platformFeePercent,
     status: b.status || 'pending_host_approval',
     submittedAt: b.created_at ? new Date(b.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Recently',
     deadlineHoursRemaining: 18,

@@ -56,6 +56,27 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
   const [lastPaymentIntentId, setLastPaymentIntentId] = useState<string | null>(null);
   const [showCancellationDetails, setShowCancellationDetails] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
+  const [selectedExtraOptions, setSelectedExtraOptions] = useState<Record<string, boolean>>({});
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountAmount: number } | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+
+  const [platformFeePercent, setPlatformFeePercent] = useState<number>(5);
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    fetch('/api/platform/fee')
+      .then((res) => res.ok ? res.json() : Promise.reject(new Error('Fee settings unavailable')))
+      .then((data) => {
+        if (active && Number.isFinite(Number(data.hostFeePercent))) {
+          setPlatformFeePercent(Number(data.hostFeePercent));
+          stripeConnect.setGlobalPlatformFeePercent(Number(data.hostFeePercent));
+        }
+      })
+      .catch((err) => console.warn('[Checkout] Using launch commission default:', err));
+    return () => { active = false; };
+  }, [isOpen]);
 
   // Selected policy tier (defaulting to flexible_30d)
   const cancellationTier: CancellationTier = (listing as any).cancellationTier || 'flexible_30d';
@@ -85,16 +106,9 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
   const petFee = listing.petFee || 0;
   const parkingFee = listing.parkingFee || 0;
 
-  const [selectedExtraOptions, setSelectedExtraOptions] = useState<Record<string, boolean>>({});
-
   const extraOptionsFee = (listing.extraOptions || []).reduce((acc, opt) => {
     return acc + (selectedExtraOptions[opt.name] ? Number(opt.price) : 0);
   }, 0);
-
-  const [promoCodeInput, setPromoCodeInput] = useState('');
-  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountAmount: number } | null>(null);
-  const [promoError, setPromoError] = useState<string | null>(null);
-  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
 
   const travelerFee = 0;
   // Upfront charge includes prorated accommodation, cleaning fee, and pet fee minus any promo discount.
@@ -127,16 +141,8 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
     }
   };
 
-  // Effective host fee lookup (checks for custom fee override vs global rate)
-  const hostEffective = stripeConnect.getEffectiveFeeRate(listing.id || listing.title);
-  const hostOverride = hostEffective.host;
-
-  // Determine the final fee rate to use (listing custom fee takes precedence over host effective fee)
-  const finalFeeRate = listing.customFeeOverridePercent !== undefined
-    ? listing.customFeeOverridePercent / 100
-    : hostEffective.feeRate;
-
-  const isListingOverrideActive = listing.customFeeOverridePercent !== undefined;
+  // The server-persisted platform rate is the source of truth for this booking.
+  const finalFeeRate = platformFeePercent / 100;
 
   // Verification Checkpoint lock
   const isIdentityVerified = verificationData?.isIdVerified === true || verificationData?.isIdentityVerified === true || (currentUser as any)?.isIdVerified === true;
@@ -146,7 +152,7 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
 
   // Split calculation preview based on final effective fee rate
   const splitPreview = stripeConnect.calculateSplit(
-    monthlyRent,
+    accommodationTotal,
     cleaningFee,
     securityDeposit,
     finalFeeRate
@@ -654,7 +660,7 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-500">Stripe Connect Direct Charge:</span>
-                <span className="font-bold text-[#2F6E5E]">5% Platform Split (Non-Custodial)</span>
+                <span className="font-bold text-[#2F6E5E]">{platformFeePercent.toFixed(1)}% Platform Commission</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-500">Hold Amount:</span>

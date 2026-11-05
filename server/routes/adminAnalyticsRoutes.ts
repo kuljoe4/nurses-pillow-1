@@ -217,7 +217,7 @@ router.put('/settings/platform-fee', authenticateToken, requireAdmin, async (req
     }
 
     const currentFeeRes = await db.query('SELECT host_fee_percent FROM platform_fee_settings WHERE id = 1');
-    const prevFee = parseFloat(currentFeeRes.rows[0]?.host_fee_percent || '5.00');
+    const prevFee = parseFloat(currentFeeRes.rows[0]?.host_fee_percent ?? '5.00');
 
     // Update settings
     await db.query(`
@@ -226,22 +226,18 @@ router.put('/settings/platform-fee', authenticateToken, requireAdmin, async (req
       WHERE id = 1
     `, [numFee, adminId]);
 
-    // Count active hosts to notify
-    const hostsRes = await db.query("SELECT COUNT(*) as count FROM users WHERE role = 'host' AND is_suspended = false");
-    const hostsCount = parseInt(hostsRes.rows[0]?.count || '0', 10);
-
     // Audit log
     await db.query(`
-      INSERT INTO fee_change_logs (admin_id, previous_fee_percent, new_fee_percent, effective_at, hosts_notified_count)
-      VALUES ($1, $2, $3, NOW(), $4)
-    `, [adminId, prevFee, numFee, hostsCount]);
+      INSERT INTO fee_change_logs (admin_id, previous_fee_percent, new_fee_percent, effective_at)
+      VALUES ($1, $2, $3, NOW())
+    `, [adminId, prevFee, numFee]);
 
     res.json({
       success: true,
       message: `Host service fee successfully updated to ${numFee.toFixed(1)}%.`,
       previousFee: prevFee,
       newFee: numFee,
-      hostsNotifiedCount: hostsCount,
+      effectiveFor: 'new_booking_requests',
     });
   } catch (err: any) {
     console.error('[Update Platform Fee API] Error:', err.message);

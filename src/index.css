@@ -427,6 +427,79 @@ img[class*="w-full"][class*="h-full"] {
     overflow-x: auto;
   }
 }
+
+/* Desktop workspace layout: persistent side navigation with a fluid content column. */
+@media (min-width: 1024px) {
+  .np-host-dashboard,
+  .np-admin-dashboard,
+  .np-nurse-dashboard {
+    display: grid;
+    grid-template-columns: 224px minmax(0, 1fr);
+    column-gap: 24px;
+    row-gap: 18px;
+    align-items: start;
+  }
+
+  .np-host-dashboard > div:first-child,
+  .np-admin-dashboard > div:first-child,
+  .np-nurse-dashboard > div:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .np-host-dashboard > .np-dashboard-nav,
+  .np-admin-dashboard > .np-dashboard-nav,
+  .np-nurse-dashboard > .np-dashboard-nav-shell {
+    grid-column: 1;
+    grid-row: 2;
+    position: sticky;
+    top: 18px;
+    width: 100%;
+    max-width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    overflow: visible;
+    padding: 10px;
+    border-radius: 16px;
+    background: #fff;
+    border: 1px solid var(--np-line);
+    box-shadow: var(--np-card-shadow);
+  }
+
+  .np-host-dashboard > .np-dashboard-nav ~ *,
+  .np-admin-dashboard > .np-dashboard-nav ~ *,
+  .np-nurse-dashboard > .np-dashboard-nav-shell ~ * {
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  .np-dashboard-nav > button {
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+    white-space: normal;
+    min-height: 44px;
+  }
+
+  .np-nurse-dashboard > .np-dashboard-nav-shell .np-dashboard-nav {
+    width: 100%;
+    max-width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    overflow: visible;
+  }
+}
+
+/* Keep long workspace labels readable and preserve a clear active state. */
+.np-dashboard-nav > button[aria-current="page"] {
+  box-shadow: 0 2px 8px rgba(23, 107, 145, .14);
+}
+.np-dashboard-nav > button {
+  min-height: 44px;
+  padding-inline: 14px;
+}
+.np-dashboard-nav::-webkit-scrollbar { height: 5px; }
+.np-dashboard-nav::-webkit-scrollbar-thumb { background: rgba(100, 119, 137, .25); border-radius: 999px; }
 @media (prefers-reduced-motion: reduce) {
   .np-dashboard-nav {
     scroll-behavior: auto;
