@@ -353,7 +353,7 @@ class StripeConnectService {
     this.saveHosts();
   }
 
-  // Returns effective decimal fee (e.g. 0.05 or 0.035) for a given host or listing
+  // Returns effective decimal fee (e.g. 0.05 or 0.15) for a given host or listing
   getEffectiveFeeRate(hostIdOrListingId?: string): { feeRate: number; feePercent: number; isOverride: boolean; host?: HostFeeOverride } {
     const host = this.getHostOverrideForListing(hostIdOrListingId, hostIdOrListingId);
     if (host && host.hasOverride) {
