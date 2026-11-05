@@ -1455,6 +1455,9 @@ async function startServer() {
           [id]
         );
         const updatedRow = updateRes.rows[0];
+        if (!updatedRow) {
+          return res.status(409).json({ error: 'Listing cannot be published until its territory is active and the host is verified with payouts enabled.' });
+        }
         return res.json({
           success: true,
           message: 'Listing approved and published live for clinician bookings!',
