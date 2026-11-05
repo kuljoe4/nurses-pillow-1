@@ -1184,7 +1184,7 @@ async function startServer() {
         success: true,
         message: `State ${st} (${getStateName(st)}) is now active for live clinician bookings!`,
         activatedState: st,
-        activeStates: Array.from(activeStatesList),
+        activeStates: (await db.query('SELECT state_code FROM active_territories WHERE is_active = true')).rows.map((row: any) => String(row.state_code).toUpperCase()),
       });
     } catch (err: any) {
       console.error('Error activating territory:', err);
