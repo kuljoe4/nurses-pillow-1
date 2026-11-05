@@ -4,7 +4,7 @@
 export const STRIPE_SANDBOX_CONFIG = {
   publishableKey: 'pk_test_51NursesPillow_SandboxKey94821',
   platformAccountId: 'acct_1NursesPillow_HQ_Master',
-  platformFeePercent: 0.05, // 5%
+  platformFeePercent: 0.05, // 5% launch default; admin-adjustable up to 15%
   travelerFee: 0.00, // $0 Traveler Fee guarantee
   mode: 'test' as const,
   statementDescriptor: 'NURSES PILLOW HOUSING',
@@ -17,8 +17,8 @@ export interface StripeSplitTransaction {
   transferId: string;
   authorizationHoldId?: string;
   grossAmount: number; // Traveler paid
-  platformFeeAmount: number; // 5% fee retained by Nurses Pillow
-  hostPayoutAmount: number; // ~95% sent to Host Express account
+  platformFeeAmount: number; // Host commission retained by Nurses Pillow
+  hostPayoutAmount: number; // Remaining eligible booking amount sent to the host
   securityDepositHoldAmount: number; // Authorized hold (not charged)
   hostConnectedAccountId: string;
   currency: string;
@@ -189,7 +189,7 @@ const DEFAULT_HOST_PROFILES: HostFeeOverride[] = [
 
 class StripeConnectService {
   private transactions: StripeSplitTransaction[] = [];
-  private globalFeePercent: number = STRIPE_SANDBOX_CONFIG.platformFeePercent; // e.g. 0.05 (5%)
+  private globalFeePercent: number = STRIPE_SANDBOX_CONFIG.platformFeePercent; // 5% launch default; configurable up to 15%
   private hostProfiles: HostFeeOverride[] = [];
   private listeners: Set<() => void> = new Set();
 
@@ -392,7 +392,7 @@ class StripeConnectService {
     }
 
     const grossCharge = monthlyRent + cleaningFee;
-    const platformFee = Number((grossCharge * effectiveRate).toFixed(2));
+    const platformFee = Number((monthlyRent * effectiveRate).toFixed(2));
     const hostNetPayout = Number((grossCharge - platformFee).toFixed(2));
     const feePercent = Number((effectiveRate * 100).toFixed(1));
 
