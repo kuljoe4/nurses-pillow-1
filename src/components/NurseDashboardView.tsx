@@ -297,7 +297,7 @@ export const NurseDashboardView: React.FC<NurseDashboardViewProps> = ({
       </div>
 
       {/* Segmented Tab Navigation Capsule */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+      <div className="np-dashboard-nav-shell flex flex-wrap items-center justify-between gap-3 pt-1">
         <div role="navigation" aria-label="Clinician dashboard sections" className="np-dashboard-nav inline-flex p-1 rounded-full bg-[#EFF6FB] dark:bg-[#0E1A2E] border border-[rgba(11,37,89,0.06)] dark:border-[#233550]">
           <button
             type="button"
@@ -351,6 +351,10 @@ export const NurseDashboardView: React.FC<NurseDashboardViewProps> = ({
               className="w-2 h-2 rounded-full"
               style={{ backgroundColor: userIsVerified ? '#2F6E5E' : '#B9822E' }}
             />
+          </button>
+          <button type="button" onClick={() => onOpenMessages()} className="py-1.5 px-3.5 rounded-full text-xs font-bold transition-all cursor-pointer text-gray-600 dark:text-gray-300 hover:text-[#0B2559] dark:hover:text-white">
+            <span className="material-symbols-outlined text-[16px]">forum</span>
+            <span>Messages</span>
           </button>
         </div>
       </div>
