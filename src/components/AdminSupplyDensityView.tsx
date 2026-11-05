@@ -79,7 +79,8 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
   // Fetch territories data
   const fetchTerritoryData = async () => {
     try {
-      const res = await fetch('/api/admin/territories');
+      const token = localStorage.getItem('np_auth_token') || sessionStorage.getItem('np_auth_token');
+      const res = await fetch('/api/admin/territories', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (res.ok) {
         const data = await res.json();
         setTerritoriesData(data);
