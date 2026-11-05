@@ -228,9 +228,9 @@ router.put('/settings/platform-fee', authenticateToken, requireAdmin, async (req
 
     // Audit log
     await db.query(`
-      INSERT INTO fee_change_logs (admin_id, previous_fee_percent, new_fee_percent, effective_at, hosts_notified_count)
-      VALUES ($1, $2, $3, NOW(), $4)
-    `, [adminId, prevFee, numFee, hostsCount]);
+      INSERT INTO fee_change_logs (admin_id, previous_fee_percent, new_fee_percent, effective_at)
+      VALUES ($1, $2, $3, NOW())
+    `, [adminId, prevFee, numFee]);
 
     res.json({
       success: true,
