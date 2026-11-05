@@ -11,6 +11,29 @@ CREATE EXTENSION IF NOT EXISTS "btree_gist"; -- Required for overlapping date EX
 -- Enable PostGIS for geospatial hospital distance lookups if supported
 -- CREATE EXTENSION IF NOT EXISTS "earthdistance" CASCADE;
 
+CREATE TABLE IF NOT EXISTS platform_fee_settings (
+    id INTEGER PRIMARY KEY,
+    host_fee_percent DECIMAL(5, 2) NOT NULL DEFAULT 5.00,
+    traveler_fee_percent DECIMAL(5, 2) NOT NULL DEFAULT 0.00,
+    updated_by VARCHAR(255),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT platform_fee_percent_range CHECK (host_fee_percent >= 0 AND host_fee_percent <= 15)
+);
+INSERT INTO platform_fee_settings (id, host_fee_percent, traveler_fee_percent)
+VALUES (1, 5.00, 0.00)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS fee_change_logs (
+    id BIGSERIAL PRIMARY KEY,
+    admin_id VARCHAR(255) NOT NULL,
+    previous_fee_percent DECIMAL(5, 2) NOT NULL,
+    new_fee_percent DECIMAL(5, 2) NOT NULL,
+    effective_at TIMESTAMPTZ DEFAULT NOW(),
+    hosts_notified_count INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+
 -- ============================================================================
 -- 1. ENUMS & DOMAINS
 -- ============================================================================
@@ -422,9 +445,9 @@ CREATE TABLE bookings (
 
     -- Platform Economics & Split Architecture
     traveler_platform_fee DECIMAL(10, 2) NOT NULL DEFAULT 0.00, -- STRICT GUARANTEE: $0 Traveler Fee
-    host_platform_fee_percent DECIMAL(5, 2) NOT NULL DEFAULT 5.00, -- 5% default (capped at 15%)
+    host_platform_fee_percent DECIMAL(5, 2) NOT NULL DEFAULT 5.00, -- Adjustable host commission (0% to 15%); 5% launch default
     host_platform_fee_amount DECIMAL(10, 2) NOT NULL,
-    host_payout_amount DECIMAL(10, 2) NOT NULL, -- ~95% routed to Host Connected Account
+    host_payout_amount DECIMAL(10, 2) NOT NULL, -- Remaining booking amount after the recorded host commission
 
     -- Promo Code Applied
     promo_code_id UUID REFERENCES promo_codes(id),
