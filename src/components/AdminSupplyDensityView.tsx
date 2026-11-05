@@ -856,7 +856,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
                 No properties currently on waitlist for this selection.
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto admin-responsive-table">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-400 font-bold uppercase text-[10px]">
@@ -975,7 +975,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
                 No active live listings found for this filter.
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto admin-responsive-table">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-400 font-bold uppercase text-[10px]">
@@ -1061,7 +1061,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto admin-responsive-table">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-400 font-bold uppercase text-[10px]">
