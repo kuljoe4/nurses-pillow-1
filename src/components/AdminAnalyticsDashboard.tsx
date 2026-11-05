@@ -365,7 +365,7 @@ export const AdminAnalyticsDashboard: React.FC<AdminAnalyticsDashboardProps> = (
                 </span>
                 <span className="flex items-center gap-1.5 text-[rgba(11,37,89,0.7)] dark:text-[#A0AEC0]">
                   <span className="w-3 h-3 rounded-sm bg-[#0A6FA8]" />
-                  <span>Platform Revenue (5%)</span>
+                  <span>Platform Revenue</span>
                 </span>
               </div>
             </div>
