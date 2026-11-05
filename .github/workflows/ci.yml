@@ -62,3 +62,6 @@ jobs:
 
       - name: Run tests
         run: pnpm test
+
+      - name: Validate Railway Docker image
+        run: docker build --tag nurses-pillow-ci .

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import { ALL_US_STATES, STATE_NAMES, STATE_COORDINATES, getStateName, getStateCoordinates, isStateActive } from '../lib/constants/states';
 import { HousingListing } from '../types';
+import { AdminPagination } from './AdminPagination';
+import { AdminResponsiveTableLabels } from './AdminResponsiveTableLabels';
 
 interface AdminSupplyDensityViewProps {
   isNightShiftMode: boolean;
@@ -31,6 +33,10 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
   activeStates: propActiveStates,
 }) => {
   const [territoryViewMode, setTerritoryViewMode] = useState<'all' | 'single' | 'compare'>('all');
+  const [demandPage, setDemandPage] = useState(1);
+  const [waitlistPage, setWaitlistPage] = useState(1);
+  const [livePage, setLivePage] = useState(1);
+  const [supplyPageSize, setSupplyPageSize] = useState(10);
   const [selectedState, setSelectedState] = useState<string>('ALL');
   const [stateSearchQuery, setStateSearchQuery] = useState<string>('');
   const [stateFilterTab, setStateFilterTab] = useState<'all' | 'active' | 'waitlist'>('all');
@@ -293,8 +299,11 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
     return true;
   });
 
+  useEffect(() => { setDemandPage(1); setWaitlistPage(1); setLivePage(1); }, [selectedState, stateFilterTab, displayedDemandMarkets.length, displayedWaitlistListings.length, displayedLiveListings.length]);
+
   return (
     <div className="space-y-6">
+      <AdminResponsiveTableLabels />
       {/* Toast Notice */}
       {toastMessage && (
         <div className={`p-3.5 rounded-2xl text-xs font-semibold flex items-center justify-between gap-3 shadow-sm border transition-all animate-in fade-in duration-200 ${
@@ -740,7 +749,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto admin-responsive-table">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-400 font-bold uppercase text-[10px]">
@@ -754,7 +763,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {displayedDemandMarkets.map((m) => (
+                  {displayedDemandMarkets.slice((demandPage - 1) * supplyPageSize, demandPage * supplyPageSize).map((m) => (
                     <tr key={m.id} className="hover:bg-gray-50 dark:hover:bg-[#14233a] transition-colors">
                       <td className="py-3.5 px-3">
                         <div className="font-bold text-[#0B2559] dark:text-white">{m.hospitalName}</div>
@@ -823,6 +832,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
                 </tbody>
               </table>
             </div>
+            <AdminPagination total={displayedDemandMarkets.length} page={demandPage} pageSize={supplyPageSize} onPageChange={setDemandPage} onPageSizeChange={setSupplyPageSize} />
           </div>
 
           {/* Properties Waiting for State Launch (Waitlist Queue) */}
@@ -846,7 +856,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
                 No properties currently on waitlist for this selection.
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto admin-responsive-table">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-400 font-bold uppercase text-[10px]">
@@ -859,7 +869,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {displayedWaitlistListings.map((item) => (
+                    {displayedWaitlistListings.slice((waitlistPage - 1) * supplyPageSize, waitlistPage * supplyPageSize).map((item) => (
                       <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-[#14233a] transition-colors">
                         <td className="py-3.5 px-3">
                           <div className="font-bold text-[#0B2559] dark:text-white">{item.title}</div>
@@ -941,6 +951,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
                 </table>
               </div>
             )}
+            <AdminPagination total={displayedWaitlistListings.length} page={waitlistPage} pageSize={supplyPageSize} onPageChange={setWaitlistPage} onPageSizeChange={setSupplyPageSize} />
           </div>
 
           {/* Live Housing Supply in Active States Table */}
@@ -964,7 +975,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
                 No active live listings found for this filter.
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto admin-responsive-table">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-400 font-bold uppercase text-[10px]">
@@ -977,7 +988,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {displayedLiveListings.map((item) => (
+                    {displayedLiveListings.slice((livePage - 1) * supplyPageSize, livePage * supplyPageSize).map((item) => (
                       <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-[#14233a] transition-colors">
                         <td className="py-3.5 px-3">
                           <div className="font-bold text-[#0B2559] dark:text-white">{item.title}</div>
@@ -1031,6 +1042,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
                 </table>
               </div>
             )}
+            <AdminPagination total={displayedLiveListings.length} page={livePage} pageSize={supplyPageSize} onPageChange={setLivePage} onPageSizeChange={setSupplyPageSize} />
           </div>
         </div>
       )}
@@ -1049,7 +1061,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto admin-responsive-table">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-400 font-bold uppercase text-[10px]">

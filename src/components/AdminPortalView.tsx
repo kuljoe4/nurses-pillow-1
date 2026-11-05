@@ -4,6 +4,8 @@ import { getProfessionLabel } from '../lib/professionConstants';
 import { AdminSupplyDensityView } from './AdminSupplyDensityView';
 import { AdminAnalyticsDashboard } from './AdminAnalyticsDashboard';
 import { AdminActivityLogView } from './AdminActivityLogView';
+import { AdminPagination } from './AdminPagination';
+import { AdminResponsiveTableLabels } from './AdminResponsiveTableLabels';
 
 interface AdminPortalViewProps {
   currentUser?: any;
@@ -31,6 +33,15 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   const [managedListings, setManagedListings] = useState<HousingListing[]>(listings);
   const [dbBookings, setDbBookings] = useState<BookingRequest[]>(bookingRequests);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [clinicianPage, setClinicianPage] = useState(1);
+  const [hostPage, setHostPage] = useState(1);
+  const [propertyPage, setPropertyPage] = useState(1);
+  const [bookingPage, setBookingPage] = useState(1);
+  const [adminPageSize, setAdminPageSize] = useState(10);
+  useEffect(() => { setClinicianPage(1); }, [reviews.length, adminPageSize]);
+  useEffect(() => { setHostPage(1); }, [hostReviews.length, adminPageSize]);
+  useEffect(() => { setPropertyPage(1); }, [managedListings.length, adminPageSize]);
+  useEffect(() => { setBookingPage(1); }, [dbBookings.length, adminPageSize]);
 
   // Fetch live bookings from backend API
   useEffect(() => {
@@ -42,32 +53,35 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         });
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
+          if (Array.isArray(data)) {
             const mapped: BookingRequest[] = data.map((b: any) => ({
-              id: b.id,
-              clinicianName: b.clinicianName || b.traveler_name || b.traveler_id || 'Travel Clinician',
-              clinicianTitle: 'Travel Healthcare Professional',
-              clinicianAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=256&q=80',
-              clinicianPhone: b.clinicianPhone || b.phone_number || '+1 (919) 555-0198',
-              hospitalName: b.hospitalName || b.hospital_name || 'Assignment Hospital',
-              unitSpecialty: 'Clinical Unit',
-              listingId: b.listing_id,
-              listingTitle: b.listingTitle || b.listing_title || 'Sanctuary Listing',
-              startDate: b.startDate || b.start_date || '2026-10-15',
-              endDate: b.endDate || b.end_date || '2026-11-15',
-              durationWeeks: b.durationWeeks || b.duration_weeks || 13,
-              monthlyRent: Number(b.monthlyRent ?? b.monthly_rent ?? b.total_rent ?? b.total_traveler_charged ?? 1950),
-              securityDeposit: 0,
-              cleaningFee: Number(b.cleaningFee ?? b.cleaning_fee ?? 150),
+              id: String(b.id ?? ''),
+              clinicianName: b.clinicianName || b.traveler_name || b.traveler_id || 'Not provided',
+              clinicianTitle: b.clinicianTitle || b.profession || 'Not provided',
+              clinicianAvatar: b.clinicianAvatar || '',
+              clinicianPhone: b.clinicianPhone || b.phone_number || 'Not provided',
+              hospitalName: b.hospitalName || b.hospital_name || 'Not provided',
+              unitSpecialty: b.unitSpecialty || b.unit_specialty || 'Not provided',
+              listingId: String(b.listing_id ?? ''),
+              listingTitle: b.listingTitle || b.listing_title || 'Not provided',
+              startDate: b.startDate || b.start_date || '',
+              endDate: b.endDate || b.end_date || '',
+              durationWeeks: Number(b.durationWeeks ?? b.duration_weeks ?? 0),
+              monthlyRent: Number(b.monthlyRent ?? b.monthly_rent ?? b.total_rent ?? 0),
+              securityDeposit: Number(b.securityDeposit ?? b.security_deposit ?? 0),
+              cleaningFee: Number(b.cleaningFee ?? b.cleaning_fee ?? 0),
               petFee: Number(b.petFee ?? b.pet_fee ?? 0),
-              travelerFee: 0,
-              totalInitialCharge: Number(b.totalInitialCharge ?? b.gross_booking_value ?? b.total_traveler_charged ?? 2100),
+              travelerFee: Number(b.travelerFee ?? b.traveler_fee ?? 0),
+              totalInitialCharge: Number(b.totalInitialCharge ?? b.gross_booking_value ?? b.total_traveler_charged ?? 0),
               hostNetPayout: Number(b.hostNetPayout ?? b.host_payout_amount ?? 0),
               platformFeeAmount: Number(b.platformFeeAmount ?? b.host_platform_fee_amount ?? 0),
-              platformFeePercent: Number(b.platformFeePercent ?? b.host_platform_fee_percent ?? 5),
+              platformFeePercent: Number(b.platformFeePercent ?? b.host_platform_fee_percent ?? 0),
               status: b.status || 'pending_host_approval',
-              submittedAt: 'Recently',
-              deadlineHoursRemaining: 24,
+              submittedAt: b.submittedAt || b.created_at || 'Not available',
+              deadlineHoursRemaining: Number(b.deadlineHoursRemaining ?? 0),
+              specialRequests: b.specialRequests || b.special_requests || undefined,
+              hostId: b.hostId || b.host_id || undefined,
+              clinicianId: b.clinicianId || b.traveler_id || undefined,
             }));
             setDbBookings(mapped);
           }
@@ -292,6 +306,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         isNightShiftMode ? 'text-[#E6ECF7]' : 'text-[#0B2559]'
       }`}
     >
+      <AdminResponsiveTableLabels />
       {/* Header & Role Identification */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
@@ -452,7 +467,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               </span>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto admin-responsive-table">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-400 font-bold uppercase text-[10px]">
@@ -466,7 +481,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {reviews.map((r) => (
+                  {reviews.slice((clinicianPage - 1) * adminPageSize, clinicianPage * adminPageSize).map((r) => (
                     <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-[#14233a] transition-colors">
                       <td className="py-3.5 px-3 font-bold text-[#0B2559] dark:text-white">
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -582,6 +597,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                 </tbody>
               </table>
             </div>
+            <AdminPagination total={reviews.length} page={clinicianPage} pageSize={adminPageSize} onPageChange={setClinicianPage} onPageSizeChange={setAdminPageSize} />
           </div>
         </div>
       )}
@@ -606,7 +622,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
 
             <div className="mb-8">
               <h3 className="text-md font-bold text-[#0B2559] dark:text-white mb-3">Host Authority (Stripe KYC)</h3>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto admin-responsive-table">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-400 font-bold uppercase text-[10px]">
@@ -618,7 +634,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {hostReviews.map((h) => (
+                    {hostReviews.slice((hostPage - 1) * adminPageSize, hostPage * adminPageSize).map((h) => (
                       <tr key={'host-'+h.id} className="hover:bg-gray-50 dark:hover:bg-[#14233a] transition-colors">
                         <td className="py-3.5 px-3 font-bold text-[#0B2559] dark:text-white">{h.hostName}</td>
                         <td className="py-3.5 px-3 font-mono text-gray-500">{h.stripeAccountId || 'None'}</td>
@@ -668,10 +684,11 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   </tbody>
                 </table>
               </div>
+              <AdminPagination total={hostReviews.length} page={hostPage} pageSize={adminPageSize} onPageChange={setHostPage} onPageSizeChange={setAdminPageSize} />
             </div>
 
             <h3 className="text-md font-bold text-[#0B2559] dark:text-white mb-3 mt-4">Property Listings</h3>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto admin-responsive-table">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-400 font-bold uppercase text-[10px]">
@@ -685,7 +702,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {managedListings.map((l) => (
+                  {managedListings.slice((propertyPage - 1) * adminPageSize, propertyPage * adminPageSize).map((l) => (
                     <tr key={l.id} className="hover:bg-gray-50 dark:hover:bg-[#14233a] transition-colors">
                       <td className="py-3.5 px-3 font-bold text-[#0B2559] dark:text-white">
                         {l.title}
@@ -737,6 +754,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                 </tbody>
               </table>
             </div>
+            <AdminPagination total={managedListings.length} page={propertyPage} pageSize={adminPageSize} onPageChange={setPropertyPage} onPageSizeChange={setAdminPageSize} />
           </div>
         </div>
       )}
@@ -764,7 +782,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                 No active booking pre-authorizations recorded yet. Requests from traveling nurses will stream here.
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto admin-responsive-table">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-400 font-bold uppercase text-[10px]">
@@ -778,7 +796,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {dbBookings.map((b) => (
+                    {dbBookings.slice((bookingPage - 1) * adminPageSize, bookingPage * adminPageSize).map((b) => (
                       <tr key={b.id} className="hover:bg-gray-50 dark:hover:bg-[#14233a] transition-colors">
                         <td className="py-3.5 px-3 font-mono font-bold text-[#0B2559] dark:text-white">
                           {b.id}
@@ -792,13 +810,17 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                           <div className="text-[10px] text-[#0A6FA8]">{b.hospitalName} ({b.durationWeeks} wks)</div>
                         </td>
                         <td className="py-3.5 px-3 font-bold tabular-nums">
-                          ${b.monthlyRent.toLocaleString()}
+                          {b.monthlyRent > 0 ? `${b.monthlyRent.toLocaleString()}` : 'Unavailable'}
                         </td>
                         <td className="py-3.5 px-3 text-[#0A6FA8] dark:text-[#3E9AD1] font-bold tabular-nums">
-                          ${Number(b.platformFeeAmount || (b.monthlyRent * ((b.platformFeePercent ?? 5) / 100))).toFixed(2)}
+                          {b.platformFeeAmount != null && b.platformFeeAmount > 0
+                            ? `${b.platformFeeAmount.toFixed(2)}`
+                            : b.platformFeePercent != null && b.platformFeePercent > 0 && b.monthlyRent > 0
+                            ? `${(b.monthlyRent * b.platformFeePercent / 100).toFixed(2)}`
+                            : 'Unavailable'}
                         </td>
                         <td className="py-3.5 px-3 text-[#2F6E5E] dark:text-[#aff0db] font-bold tabular-nums">
-                          ${b.hostNetPayout ? b.hostNetPayout.toFixed(2) : (b.monthlyRent - Number(b.platformFeeAmount || (b.monthlyRent * ((b.platformFeePercent ?? 5) / 100)))).toFixed(2)}
+                          {b.hostNetPayout > 0 ? `${b.hostNetPayout.toFixed(2)}` : 'Unavailable'}
                         </td>
                         <td className="py-3.5 px-3">
                           <span
@@ -824,6 +846,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                 </table>
               </div>
             )}
+            <AdminPagination total={dbBookings.length} page={bookingPage} pageSize={adminPageSize} onPageChange={setBookingPage} onPageSizeChange={setAdminPageSize} />
           </div>
         </div>
       )}
