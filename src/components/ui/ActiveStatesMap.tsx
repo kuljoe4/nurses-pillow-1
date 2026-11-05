@@ -34,7 +34,7 @@ export const ActiveStatesMap: React.FC<{
   const [hoveredState, setHoveredState] = useState<{ code: string; name: string; hub: string } | null>(null);
 
   // Dynamic active list fallback to ACTIVE_STATES
-  const effectiveActiveStates = (activeStates && activeStates.length > 0 ? activeStates : ACTIVE_STATES).map(s => s.toUpperCase());
+  const effectiveActiveStates = (activeStates || []).map(s => s.toUpperCase());
 
   // Dynamically assemble hubs for active states
   const activeHubs = effectiveActiveStates.map((code) => {
