@@ -141,14 +141,8 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
     }
   };
 
-  // Effective host fee lookup (checks for custom fee override vs global rate)
-  const hostEffective = stripeConnect.getEffectiveFeeRate(listing.id || listing.title);
-  const hostOverride = hostEffective.host;
-
-  // Determine the final fee rate to use (listing custom fee takes precedence over host effective fee)
+  // The server-persisted platform rate is the source of truth for this booking.
   const finalFeeRate = platformFeePercent / 100;
-
-  const isListingOverrideActive = listing.customFeeOverridePercent !== undefined;
 
   // Verification Checkpoint lock
   const isIdentityVerified = verificationData?.isIdVerified === true || verificationData?.isIdentityVerified === true || (currentUser as any)?.isIdVerified === true;
