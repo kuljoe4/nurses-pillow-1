@@ -31,7 +31,7 @@ export const Footer: React.FC<FooterProps> = ({
     }).catch(console.error);
   }, []);
 
-  const effectiveActiveList = (activeStates && activeStates.length > 0 ? activeStates : ACTIVE_STATES).map(s => s.toUpperCase());
+  const effectiveActiveList = (activeStates || []).map(s => s.toUpperCase());
 
   const displayedStates = effectiveActiveList.map(code => {
     const matched = ACTIVE_CLEARED_STATES.find(s => s.code.toUpperCase() === code);
