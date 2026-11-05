@@ -223,3 +223,169 @@ img[class*="w-full"][class*="h-full"] {
 .animate-fade-in {
   animation: fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+
+
+/* Nurses Pillow dashboard refresh — shared visual system */
+.np-dashboard {
+  --np-ink: #17324d;
+  --np-muted: #647789;
+  --np-line: #e4ebf0;
+  --np-canvas: #f4f7f9;
+  --np-blue: #176b91;
+  --np-teal: #25866f;
+  --np-card-shadow: 0 8px 28px rgba(20, 48, 70, .055);
+  max-width: 1440px !important;
+  padding-top: 30px !important;
+  padding-bottom: 48px !important;
+  color: var(--np-ink);
+  font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
+}
+.np-dashboard h1,
+.np-dashboard h2,
+.np-dashboard h3 { letter-spacing: -.035em; }
+.np-dashboard h1 { font-weight: 750; }
+.np-dashboard h2,
+.np-dashboard h3 { font-weight: 700; }
+.np-dashboard .bg-white,
+.np-dashboard [class*="bg-white dark:bg-"] {
+  border-color: var(--np-line) !important;
+  box-shadow: var(--np-card-shadow) !important;
+}
+.np-dashboard [class*="rounded-2xl"] { border-radius: 18px !important; }
+.np-dashboard [class*="shadow-"] { box-shadow: var(--np-card-shadow) !important; }
+.np-dashboard button {
+  transition: background-color .18s ease, border-color .18s ease, color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.np-dashboard button:focus-visible,
+.np-dashboard a:focus-visible,
+.np-dashboard input:focus-visible,
+.np-dashboard select:focus-visible {
+  outline: 3px solid rgba(23, 107, 145, .25);
+  outline-offset: 2px;
+}
+.np-dashboard button[class*="bg-[#0A6FA8]"],
+.np-dashboard button[class*="bg-blue-"] {
+  background: var(--np-blue) !important;
+  border-color: var(--np-blue) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 5px 12px rgba(23, 107, 145, .14);
+}
+.np-dashboard button[class*="bg-[#0A6FA8]"]:hover,
+.np-dashboard button[class*="bg-blue-"]:hover {
+  background: #105675 !important;
+  transform: translateY(-1px);
+}
+.np-dashboard button[class*="rounded-full"] { border-radius: 10px !important; }
+.np-dashboard input,
+.np-dashboard select,
+.np-dashboard textarea {
+  border-color: #d9e3e9 !important;
+  border-radius: 10px !important;
+}
+.np-dashboard .text-gray-500,
+.np-dashboard .text-gray-600 { color: var(--np-muted) !important; }
+.np-dashboard .border-[rgba(11\,37\,89\,0.06)],
+.np-dashboard [class*="border-[#233550]"] { border-color: var(--np-line) !important; }
+
+/* Nurse workspace */
+.np-nurse-dashboard > div:first-child > div:first-child {
+  background: linear-gradient(135deg, #ffffff 0%, #f7fbfc 100%);
+}
+.np-nurse-dashboard > div:first-child h1 { font-size: clamp(1.35rem, 2vw, 1.8rem); }
+.np-nurse-dashboard > div:first-child > div:last-child > div {
+  min-height: 112px;
+  padding: 18px !important;
+}
+.np-nurse-dashboard .bg-white:hover {
+  border-color: #c9dce5 !important;
+}
+.np-nurse-dashboard [role="tablist"],
+.np-nurse-dashboard .flex.flex-wrap.items-center.justify-between.gap-3.pt-1 {
+  padding: 5px;
+  border: 1px solid var(--np-line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+/* Host workspace */
+.np-host-dashboard > div:first-child {
+  align-items: stretch;
+}
+.np-host-dashboard > div:first-child > div {
+  border-radius: 18px;
+}
+.np-host-dashboard [class*="grid"] > div {
+  min-width: 0;
+}
+.np-host-dashboard table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.np-host-dashboard th {
+  color: #607486;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.np-host-dashboard td,
+.np-host-dashboard th { padding: 13px 15px; }
+
+/* Admin operations centre */
+.np-admin-dashboard > div:first-child {
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--np-line);
+}
+.np-admin-dashboard > div:first-child h1 {
+  font-size: clamp(1.65rem, 2.5vw, 2.15rem);
+}
+.np-admin-dashboard table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+.np-admin-dashboard th {
+  background: #f6f9fb;
+  color: #627789;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.np-admin-dashboard td,
+.np-admin-dashboard th { padding: 13px 15px; }
+.np-admin-dashboard tr:hover td { background: #f8fbfc; }
+.np-admin-dashboard button { border-radius: 10px; }
+
+/* Night-shift theme keeps the same hierarchy and contrast */
+.dark .np-dashboard {
+  --np-ink: #e6edf4;
+  --np-muted: #a8b7c5;
+  --np-line: #263b4d;
+  --np-canvas: #101d2a;
+  --np-card-shadow: 0 8px 28px rgba(0, 0, 0, .18);
+}
+.dark .np-dashboard .bg-white,
+.dark .np-dashboard [class*="bg-white dark:bg-"] {
+  background-color: #142536 !important;
+  border-color: var(--np-line) !important;
+}
+.dark .np-dashboard .text-gray-500,
+.dark .np-dashboard .text-gray-600 { color: #a8b7c5 !important; }
+.dark .np-dashboard th { background: #1b3042; color: #b5c5d2; }
+.dark .np-dashboard tr:hover td { background: #1b3042; }
+
+@media (max-width: 640px) {
+  .np-dashboard {
+    padding: 18px 14px 32px !important;
+  }
+  .np-dashboard [class*="grid-cols-3"] {
+    gap: 8px !important;
+  }
+  .np-dashboard [class*="grid-cols-3"] > div {
+    padding: 11px !important;
+  }
+  .np-dashboard table { min-width: 620px; }
+  .np-dashboard .overflow-x-auto { overflow-x: auto; }
+}
