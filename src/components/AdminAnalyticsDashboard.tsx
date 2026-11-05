@@ -65,7 +65,7 @@ export const AdminAnalyticsDashboard: React.FC<AdminAnalyticsDashboardProps> = (
       if (res.ok) {
         const data = await res.json();
         setFeeSettings(data);
-        setHostFeeSlider(Number(data.hostFeePercent || 5.0));
+        setHostFeeSlider(Number(data.hostFeePercent ?? 5.0));
       }
     } catch (err) {
       console.error('Failed to load fee settings:', err);
@@ -517,7 +517,7 @@ export const AdminAnalyticsDashboard: React.FC<AdminAnalyticsDashboardProps> = (
 
               <div className="flex items-center justify-between text-[11px] text-[rgba(11,37,89,0.66)] dark:text-[#A0AEC0]">
                 <span>0.0% (Fee-Free Launch Promotion)</span>
-                <span>5.0% (Standard)</span>
+                <span>5.0% (Launch default)</span>
                 <span>15.0% (Strict Legal Cap)</span>
               </div>
             </div>
@@ -552,7 +552,7 @@ export const AdminAnalyticsDashboard: React.FC<AdminAnalyticsDashboardProps> = (
                 onClick={() => setHostFeeSlider(5.0)}
                 className="px-4 py-2 rounded-xl text-xs font-medium border border-gray-200 dark:border-gray-700 text-[rgba(11,37,89,0.7)] dark:text-[#A0AEC0] hover:bg-gray-50"
               >
-                Reset to 5.0%
+                Reset to 5.0% launch default
               </button>
               <button
                 type="button"
