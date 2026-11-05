@@ -1188,13 +1188,17 @@ async function startServer() {
     }
   });
 
-  // Get real waitlist listings from PostgreSQL
-  app.get('/api/admin/listings/waitlist', async (req: Request, res: Response) => {
+  // Get real waitlist and unpublished review-queue listings from PostgreSQL
+  app.get('/api/admin/listings/waitlist', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    if (req.user?.role !== 'super_admin' && req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden: Admins only' });
+    }
     try {
       const stateFilter = (req.query.state as string)?.toUpperCase();
-      let queryText = 'SELECT * FROM listings WHERE is_expansion_waitlist = true OR (is_published = false AND is_expansion_waitlist IS NOT NULL)';
+      let queryText = 'SELECT * FROM listings WHERE (is_expansion_waitlist = true OR (is_published = false AND is_expansion_waitlist IS NOT NULL))';
       const params: any[] = [];
       if (stateFilter && stateFilter !== 'ALL') {
+        if (!ALL_US_STATES[stateFilter]) return res.status(400).json({ error: 'Invalid state filter.' });
         queryText += ' AND UPPER(state) = $1';
         params.push(stateFilter);
       }
