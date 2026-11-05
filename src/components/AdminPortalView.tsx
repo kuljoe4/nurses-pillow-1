@@ -795,13 +795,17 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                           <div className="text-[10px] text-[#0A6FA8]">{b.hospitalName} ({b.durationWeeks} wks)</div>
                         </td>
                         <td className="py-3.5 px-3 font-bold tabular-nums">
-                          ${b.monthlyRent.toLocaleString()}
+                          {b.monthlyRent > 0 ? `${b.monthlyRent.toLocaleString()}` : 'Unavailable'}
                         </td>
                         <td className="py-3.5 px-3 text-[#0A6FA8] dark:text-[#3E9AD1] font-bold tabular-nums">
-                          ${Number(b.platformFeeAmount || (b.monthlyRent * ((b.platformFeePercent ?? 5) / 100))).toFixed(2)}
+                          {b.platformFeeAmount != null && b.platformFeeAmount > 0
+                            ? `${b.platformFeeAmount.toFixed(2)}`
+                            : b.platformFeePercent != null && b.platformFeePercent > 0 && b.monthlyRent > 0
+                            ? `${(b.monthlyRent * b.platformFeePercent / 100).toFixed(2)}`
+                            : 'Unavailable'}
                         </td>
                         <td className="py-3.5 px-3 text-[#2F6E5E] dark:text-[#aff0db] font-bold tabular-nums">
-                          ${b.hostNetPayout ? b.hostNetPayout.toFixed(2) : (b.monthlyRent - Number(b.platformFeeAmount || (b.monthlyRent * ((b.platformFeePercent ?? 5) / 100)))).toFixed(2)}
+                          {b.hostNetPayout > 0 ? `${b.hostNetPayout.toFixed(2)}` : 'Unavailable'}
                         </td>
                         <td className="py-3.5 px-3">
                           <span
