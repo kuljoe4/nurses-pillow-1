@@ -927,7 +927,7 @@ async function startServer() {
   ];
 
   // Initialize active_territories table & persist baseline states in PostgreSQL
-  (async () => {
+  await (async () => {
     try {
       await db.query(`
         CREATE TABLE IF NOT EXISTS active_territories (
