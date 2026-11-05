@@ -59,6 +59,7 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
 
   const [platformFeePercent, setPlatformFeePercent] = useState<number>(5);
   useEffect(() => {
+    if (!isOpen) return;
     let active = true;
     fetch('/api/platform/fee')
       .then((res) => res.ok ? res.json() : Promise.reject(new Error('Fee settings unavailable')))
@@ -70,7 +71,7 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
       })
       .catch((err) => console.warn('[Checkout] Using launch commission default:', err));
     return () => { active = false; };
-  }, []);
+  }, [isOpen]);
 
   // Selected policy tier (defaulting to flexible_30d)
   const cancellationTier: CancellationTier = (listing as any).cancellationTier || 'flexible_30d';
@@ -159,7 +160,7 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
 
   // Split calculation preview based on final effective fee rate
   const splitPreview = stripeConnect.calculateSplit(
-    monthlyRent,
+    accommodationTotal,
     cleaningFee,
     securityDeposit,
     finalFeeRate
