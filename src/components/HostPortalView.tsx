@@ -710,7 +710,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
               Host Dashboard
             </span>
             <span className="px-2 py-0.5 rounded-full bg-[#E1EFE9] text-[#2F6E5E] dark:bg-[#142823] dark:text-[#aff0db] text-[10px] font-bold">
-              ~95% Net Payout Partner
+              Host payout after commission
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#0B2559] dark:text-white">
@@ -901,7 +901,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
               Earnings &amp; Direct Deposits
             </h2>
             <p className="text-xs text-gray-500 mt-1">
-              Transparent ~95% host split with zero hidden fees. Payouts are transferred automatically via Stripe Connect.
+              Your payout reflects the commission recorded for each booking. Transfers are managed through Stripe Connect.
             </p>
           </div>
 
@@ -910,7 +910,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
             <div className="bg-white dark:bg-[#0B1626] rounded-2xl p-4 border border-[rgba(11,37,89,0.08)] dark:border-[#233550] shadow-xs">
               <span className="text-[11px] text-gray-500 block">Total Gross Booked</span>
               <span className="text-xl sm:text-2xl font-bold text-[#0B2559] dark:text-white tabular-nums block mt-1">
-                ${earningsData?.summary?.totalGross ? Number(earningsData.summary.totalGross).toLocaleString() : Math.round(totalMonthlyNet / 0.95).toLocaleString()}.00
+                ${earningsData?.summary?.totalGross ? Number(earningsData.summary.totalGross).toLocaleString() : Math.round(totalMonthlyNet).toLocaleString()}.00
               </span>
               <span className="text-[10px] text-gray-400">Clinician payments</span>
             </div>
@@ -920,13 +920,13 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
               <span className="text-xl sm:text-2xl font-bold text-[#2F6E5E] dark:text-[#aff0db] tabular-nums block mt-1">
                 ${earningsData?.summary?.totalHostNet ? Number(earningsData.summary.totalHostNet).toLocaleString() : Math.round(totalMonthlyNet).toLocaleString()}.00
               </span>
-              <span className="text-[10px] text-[#2F6E5E] font-semibold">~95% Net Split</span>
+              <span className="text-[10px] text-[#2F6E5E] font-semibold">After recorded commission</span>
             </div>
 
             <div className="bg-white dark:bg-[#0B1626] rounded-2xl p-4 border border-[rgba(11,37,89,0.08)] dark:border-[#233550] shadow-xs">
-              <span className="text-[11px] text-gray-500 block">Platform Fee (~5%)</span>
+              <span className="text-[11px] text-gray-500 block">Platform Commission</span>
               <span className="text-xl sm:text-2xl font-bold text-[#0B2559] dark:text-white tabular-nums block mt-1">
-                ${earningsData?.summary?.totalPlatformFees ? Number(earningsData.summary.totalPlatformFees).toLocaleString() : Math.round(totalMonthlyNet * 0.0526).toLocaleString()}.00
+                ${earningsData?.summary?.totalPlatformFees ? Number(earningsData.summary.totalPlatformFees).toLocaleString() : '0'}.00
               </span>
               <span className="text-[10px] text-gray-400">Verification &amp; insurance</span>
             </div>
@@ -952,7 +952,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
             <div className="divide-y divide-gray-100 dark:divide-[#233550]">
               {(earningsData?.transactions?.length > 0 ? earningsData.transactions : payoutBookings).map((item: any, idx: number) => {
                 const amount = item.amount || item.totalInitialCharge || 0;
-                const net = item.host_net_payout || item.hostNetPayout || Math.round(amount * 0.95);
+                const net = item.netPayout ?? item.host_net_payout ?? item.hostNetPayout ?? (amount - Number(item.platformFeeDeducted ?? item.platformFeeAmount ?? 0));
                 const title = item.listing_title || item.listingTitle || 'Furnished Sanctuary';
                 const date = item.date || item.created_at || item.startDate || 'Recent stay';
                 return (
@@ -1006,7 +1006,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
                 <span className="text-xl sm:text-2xl font-bold text-[#2F6E5E] dark:text-[#aff0db] tabular-nums">
                   ${Math.round(totalMonthlyNet).toLocaleString()}
                 </span>
-                <span className="text-[10px] text-gray-400 block mt-0.5">~95% split / mo</span>
+                <span className="text-[10px] text-gray-400 block mt-0.5">Recorded host payouts / mo</span>
               </div>
             </div>
 
@@ -1066,7 +1066,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
                   <div className="flex items-center gap-3 shrink-0">
                     <div className="text-right">
                       <div className="text-sm font-bold text-[#0B2559] dark:text-white tabular-nums">${req.totalInitialCharge}</div>
-                      <div className="text-[10px] text-gray-400">Total Payout (95%)</div>
+                      <div className="text-[10px] text-gray-400">Booking total</div>
                     </div>
                     {req.status === 'pending_host_approval' && (
                       <div className="flex flex-col gap-1.5">
@@ -1885,7 +1885,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
               {currentUser?.isIdVerified ? (
                 <div className="flex items-center gap-1.5 text-xs font-bold text-[#2F6E5E] dark:text-[#aff0db] pt-2 border-t border-[rgba(11,37,89,0.05)] dark:border-[#233550]">
                   <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                  <span>Verified RealID</span>
+                  <span>Identity check complete</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-500 pt-2 border-t border-[rgba(11,37,89,0.05)] dark:border-[#233550]">
@@ -1911,7 +1911,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
               {currentUser?.isHostVerified ? (
                 <div className="flex items-center gap-1.5 text-xs font-bold text-[#2F6E5E] dark:text-[#aff0db] pt-2 border-t border-[rgba(11,37,89,0.05)] dark:border-[#233550]">
                   <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                  <span>Deed Verified on File</span>
+                  <span>Host account approved</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-500 pt-2 border-t border-[rgba(11,37,89,0.05)] dark:border-[#233550]">
