@@ -667,7 +667,7 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-500">Stripe Connect Direct Charge:</span>
-                <span className="font-bold text-[#2F6E5E]">5% Platform Split (Non-Custodial)</span>
+                <span className="font-bold text-[#2F6E5E]">{platformFeePercent.toFixed(1)}% Platform Commission</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-500">Hold Amount:</span>
