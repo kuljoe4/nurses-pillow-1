@@ -193,6 +193,7 @@ export const db = {
           ADD COLUMN IF NOT EXISTS extra_options_fee NUMERIC DEFAULT 0,
           ADD COLUMN IF NOT EXISTS deposit_hold_amount NUMERIC DEFAULT 0,
           ADD COLUMN IF NOT EXISTS gross_booking_value NUMERIC DEFAULT 0,
+          ADD COLUMN IF NOT EXISTS host_platform_fee_percent NUMERIC DEFAULT 5.00,
           ADD COLUMN IF NOT EXISTS host_platform_fee_amount NUMERIC DEFAULT 0,
           ADD COLUMN IF NOT EXISTS host_payout_amount NUMERIC DEFAULT 0,
           ADD COLUMN IF NOT EXISTS cancellation_policy_agreed VARCHAR(50) DEFAULT 'flexible',
@@ -203,6 +204,7 @@ export const db = {
           ADD COLUMN IF NOT EXISTS traveler_name VARCHAR(255),
           ADD COLUMN IF NOT EXISTS listing_title VARCHAR(255),
           ADD COLUMN IF NOT EXISTS hospital_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS requested_at TIMESTAMPTZ DEFAULT NOW(),
           ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ,
           ADD COLUMN IF NOT EXISTS declined_at TIMESTAMPTZ,
           ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;

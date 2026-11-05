@@ -960,7 +960,7 @@ async function startServer() {
         }
       }
 
-      // Seed initial sample pre-launch listings into PostgreSQL listings table
+      // Seed initial sample pre-launch listings into PostgreSQL listings table without overriding activated state
       for (const seed of seedWaitlistListings) {
         const coords = getStateCoordinates(seed.state);
         await db.query(`
@@ -972,7 +972,7 @@ async function startServer() {
             $1, 'host-sarah-m', $2, 'Furnished travel sanctuary for healthcare clinicians.', $3, $4, $5, $6,
             $7, $8, 'entire_home', $9, 0, 0,
             true, false, false
-          ) ON CONFLICT (id) DO UPDATE SET is_expansion_waitlist = true, is_published = false
+          ) ON CONFLICT (id) DO NOTHING
         `, [
           seed.id, seed.title, seed.state, seed.city, seed.address_line1, seed.postal_code,
           coords.lat || 28.5383, coords.lng || -81.3792, seed.monthly_rent
@@ -983,6 +983,41 @@ async function startServer() {
       console.warn('[Territory Engine] Database initialization notice:', e.message);
     }
   })();
+
+  // Public endpoint: Get active territories & live count for client map/footer/search sync
+  app.get('/api/territories/active', async (req: Request, res: Response) => {
+    try {
+      const activeTerritoriesRes = await db.query(
+        'SELECT state_code, state_name, activated_at FROM active_territories WHERE is_active = true'
+      );
+      const activeStatesFromDb = activeTerritoriesRes.rows.map((r: any) => r.state_code.toUpperCase());
+      for (const st of activeStatesFromDb) {
+        activeStatesList.add(st);
+      }
+      const activeArr = Array.from(activeStatesList);
+      
+      const listingsRes = await db.query(
+        'SELECT state, COUNT(*) as count FROM listings WHERE is_published = true AND (is_expansion_waitlist = false OR is_expansion_waitlist IS NULL) GROUP BY state'
+      );
+      const stateCounts: Record<string, number> = {};
+      for (const row of listingsRes.rows) {
+        if (row.state) stateCounts[row.state.toUpperCase()] = parseInt(row.count, 10);
+      }
+
+      res.json({
+        activeStates: activeArr,
+        totalActiveCount: activeArr.length,
+        stateCounts,
+      });
+    } catch (err: any) {
+      console.error('Error fetching public active territories:', err);
+      res.json({
+        activeStates: Array.from(activeStatesList),
+        totalActiveCount: activeStatesList.size,
+        stateCounts: {},
+      });
+    }
+  });
 
   // Helper endpoint: Get all 50 territories with state-specific supply, waitlist, and compliance metrics
   app.get('/api/admin/territories', async (req: Request, res: Response) => {

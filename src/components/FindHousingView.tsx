@@ -177,6 +177,7 @@ interface FindHousingViewProps {
   onGoToHostPortal?: () => void;
   userRole?: string;
   userName?: string;
+  activeStates?: string[];
 }
 
 const formatDateFriendly = (dateStr: string) => {
@@ -201,6 +202,7 @@ export const FindHousingView: React.FC<FindHousingViewProps> = ({
   onGoToHostPortal,
   userRole,
   userName,
+  activeStates,
 }) => {
   const shouldReduceMotion = useReducedMotion();
   const [selectedHospital, setSelectedHospital] = useState('');
@@ -497,14 +499,14 @@ export const FindHousingView: React.FC<FindHousingViewProps> = ({
               </motion.div>
 
               {/* Regional Limitation Banner */}
-              {!isStateActive(selectedHospitalState) && (
+              {!isStateActive(selectedHospitalState, activeStates) && (
                 <motion.div
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="p-3 rounded-xl bg-[#F4E2DC] border border-[#A8452E]/20 text-[#A8452E] text-xs font-semibold flex items-center gap-2"
                 >
                   <span className="material-symbols-outlined text-[16px] shrink-0">location_off</span>
-                  <span>We are launching soon in your state. Currently active in NC, MD, CT, ND, and KS.</span>
+                  <span>We are launching soon in your state. Currently active in {(activeStates && activeStates.length > 0 ? activeStates : ['NC', 'MD', 'CT', 'ND', 'KS']).join(', ')}.</span>
                 </motion.div>
               )}
 
@@ -671,7 +673,7 @@ export const FindHousingView: React.FC<FindHousingViewProps> = ({
               <div className="flex flex-col md:flex-row items-center justify-center gap-3 mt-4 pt-3 border-t border-[rgba(11,37,89,0.06)] dark:border-[#2b4162] text-xs font-semibold">
                 <span className="text-[#0B2559]/75 dark:text-[#E6ECF7]/75">Currently active in:</span>
                 <div className="flex flex-wrap items-center justify-center gap-2 w-full md:w-auto">
-                  {['NC', 'MD', 'CT', 'ND', 'KS'].map((state) => (
+                  {(activeStates && activeStates.length > 0 ? activeStates : ['NC', 'MD', 'CT', 'ND', 'KS']).map((state) => (
                     <span key={state} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E1EFE9] text-[#2F6E5E] dark:bg-[#195b4c]/30 dark:text-[#aff0db] shadow-xs">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#2F6E5E] dark:bg-[#aff0db]" />
                       {state}

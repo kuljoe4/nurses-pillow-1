@@ -7,6 +7,8 @@ interface AdminSupplyDensityViewProps {
   isNightShiftMode: boolean;
   onActionNotice?: (msg: string) => void;
   managedListings?: HousingListing[];
+  onStateActivated?: (stateCode: string, newActiveStates?: string[]) => void;
+  activeStates?: string[];
 }
 
 // Map Pan Synchronizer
@@ -25,6 +27,8 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
   isNightShiftMode,
   onActionNotice,
   managedListings = [],
+  onStateActivated,
+  activeStates: propActiveStates,
 }) => {
   const [territoryViewMode, setTerritoryViewMode] = useState<'all' | 'single' | 'compare'>('all');
   const [selectedState, setSelectedState] = useState<string>('ALL');
@@ -56,6 +60,10 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
     legalCounsel: false,
   });
   const [isActivatingState, setIsActivatingState] = useState(false);
+
+  // Expandable Drawer / Inspection state for decluttering dense rows
+  const [inspectedListing, setInspectedListing] = useState<any | null>(null);
+  const [inspectedMarket, setInspectedMarket] = useState<any | null>(null);
 
   const [rejectionModalListing, setRejectionModalListing] = useState<any>(null);
   const [rejectionReason, setRejectionReason] = useState('Property outside currently active operating jurisdictions.');
@@ -162,6 +170,9 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
         await fetchTerritoryData();
         await fetchDemandMarkets(selectedState);
         await fetchWaitlistListings(selectedState);
+        if (onStateActivated) {
+          onStateActivated(data.activatedState, data.activeStates);
+        }
       } else {
         const err = await res.json();
         showToast(err.error || 'Failed to activate territory.', 'error');
@@ -193,6 +204,9 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
         await fetchTerritoryData();
         await fetchDemandMarkets(selectedState);
         await fetchWaitlistListings(selectedState);
+        if (action === 'activate_and_approve' && onStateActivated && data.listing?.state) {
+          onStateActivated(data.listing.state);
+        }
       } else {
         const err = await res.json();
         showToast(err.error || 'Could not complete waitlist action.', 'error');
@@ -204,22 +218,26 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
     }
   };
 
+  const activeStatesList = (propActiveStates && propActiveStates.length > 0
+    ? propActiveStates
+    : territoriesData?.activeStates || ['NC', 'MD', 'CT', 'ND', 'KS']).map((s: string) => s.toUpperCase());
+
   // State Profile for selected state
   const currentTerritory = territoriesData?.territories?.find((t: any) => t.stateCode === selectedState);
-  const isSelectedStateActive = selectedState === 'ALL' || isStateActive(selectedState, territoriesData?.activeStates);
+  const isSelectedStateActive = selectedState === 'ALL' || activeStatesList.includes(selectedState.toUpperCase());
 
   // State metrics
   const activeCount = selectedState === 'ALL'
     ? territoriesData?.macroStats?.totalLiveListings || managedListings.length
-    : (currentTerritory?.activeListingsCount || 0);
+    : (currentTerritory?.activeListingsCount || managedListings.filter(l => l.state === selectedState).length || 0);
 
   const hostsCount = selectedState === 'ALL'
     ? territoriesData?.macroStats?.totalVerifiedHosts || 8
-    : (currentTerritory?.verifiedHostsCount || 0);
+    : (currentTerritory?.verifiedHostsCount || 2);
 
   const waitlistCount = selectedState === 'ALL'
     ? territoriesData?.macroStats?.preLaunchWaitlistCount || waitlistListings.length
-    : (currentTerritory?.waitlistCount || waitlistListings.length);
+    : (currentTerritory?.waitlistCount || waitlistListings.filter(w => w.state === selectedState).length);
 
   const proximityAvg = selectedState === 'ALL'
     ? territoriesData?.macroStats?.averageHospitalProximityMiles || 2.3
@@ -232,14 +250,14 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
   // Build full 50-state list
   const allStatesArray = Object.entries(ALL_US_STATES).map(([code, name]) => {
     const territoryInfo = territoriesData?.territories?.find((t: any) => t.stateCode === code);
-    const isActive = isStateActive(code, territoriesData?.activeStates);
+    const isActive = activeStatesList.includes(code.toUpperCase());
     const wlCount = territoryInfo?.waitlistCount || (waitlistListings.filter(w => w.state === code).length);
     return {
       code,
       name,
       active: isActive,
       waitlist: wlCount,
-      liveCount: territoryInfo?.activeListingsCount || 0,
+      liveCount: territoryInfo?.activeListingsCount || (managedListings.filter(l => l.state === code).length),
       hubName: getStateCoordinates(code).hubName,
     };
   });
@@ -253,6 +271,25 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
 
     if (stateFilterTab === 'active') return st.active;
     if (stateFilterTab === 'waitlist') return st.waitlist > 0;
+    return true;
+  });
+
+  // Filter demand markets and waitlist listings based on selected state & stateFilterTab
+  const displayedDemandMarkets = demandMarkets.filter(m => {
+    if (selectedState !== 'ALL' && m.state !== selectedState) return false;
+    if (stateFilterTab === 'active' && !activeStatesList.includes(m.state?.toUpperCase())) return false;
+    return true;
+  });
+
+  const displayedWaitlistListings = waitlistListings.filter(w => {
+    if (selectedState !== 'ALL' && w.state !== selectedState) return false;
+    if (stateFilterTab === 'active' && !activeStatesList.includes(w.state?.toUpperCase())) return false;
+    return true;
+  });
+
+  const displayedLiveListings = managedListings.filter(l => {
+    if (selectedState !== 'ALL' && l.state !== selectedState) return false;
+    if (stateFilterTab === 'active' && !activeStatesList.includes(l.state?.toUpperCase())) return false;
     return true;
   });
 
@@ -694,7 +731,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
                 <h3 className="text-base font-bold text-[#0B2559] dark:text-white flex items-center gap-2">
                   <span>Hospital Housing Needs &amp; Shortages</span>
                   <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#0A6FA8]/10 text-[#0A6FA8]">
-                    {demandMarkets.length} Priority Hospitals
+                    {displayedDemandMarkets.length} Priority Hospitals
                   </span>
                 </h3>
                 <p className="text-xs text-gray-500">
@@ -717,7 +754,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {demandMarkets.map((m) => (
+                  {displayedDemandMarkets.map((m) => (
                     <tr key={m.id} className="hover:bg-gray-50 dark:hover:bg-[#14233a] transition-colors">
                       <td className="py-3.5 px-3">
                         <div className="font-bold text-[#0B2559] dark:text-white">{m.hospitalName}</div>
@@ -748,6 +785,15 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
                       </td>
                       <td className="py-3.5 px-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setInspectedMarket(m)}
+                            className="h-8 px-2.5 rounded-lg bg-[#EFF6FB] hover:bg-[#E0EFF9] dark:bg-[#182840] dark:hover:bg-[#203350] text-[#0A6FA8] dark:text-[#3E9AD1] text-[11px] font-bold transition-colors cursor-pointer inline-flex items-center justify-center gap-1"
+                            title="Inspect demand market details"
+                          >
+                            <span className="material-symbols-outlined text-[13px]">info</span>
+                            <span>Details</span>
+                          </button>
                           <button
                             type="button"
                             onClick={() => {
@@ -786,7 +832,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
                 <h3 className="text-base font-bold text-[#0B2559] dark:text-white flex items-center gap-2">
                   <span>Properties Waiting for State Launch</span>
                   <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#B9822E]/20 text-[#B9822E]">
-                    {waitlistListings.length} Listings
+                    {displayedWaitlistListings.length} Listings
                   </span>
                 </h3>
                 <p className="text-xs text-gray-500">
@@ -795,7 +841,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
               </div>
             </div>
 
-            {waitlistListings.length === 0 ? (
+            {displayedWaitlistListings.length === 0 ? (
               <div className="py-8 text-center text-xs text-gray-400">
                 No properties currently on waitlist for this selection.
               </div>
@@ -813,7 +859,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {waitlistListings.map((item) => (
+                    {displayedWaitlistListings.map((item) => (
                       <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-[#14233a] transition-colors">
                         <td className="py-3.5 px-3">
                           <div className="font-bold text-[#0B2559] dark:text-white">{item.title}</div>
@@ -848,6 +894,15 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               type="button"
+                              onClick={() => setInspectedListing(item)}
+                              className="h-8 px-2.5 rounded-lg bg-[#EFF6FB] hover:bg-[#E0EFF9] dark:bg-[#182840] dark:hover:bg-[#203350] text-[#0A6FA8] dark:text-[#3E9AD1] text-[11px] font-bold transition-colors cursor-pointer inline-flex items-center justify-center gap-1"
+                              title="Inspect listing amenities and host verification"
+                            >
+                              <span className="material-symbols-outlined text-[13px]">info</span>
+                              <span>Details</span>
+                            </button>
+                            <button
+                              type="button"
                               disabled={actionLoadingId === item.id}
                               onClick={() => handleExecuteWaitlistAction(item.id, 'activate_and_approve')}
                               className="h-8 px-3 rounded-lg bg-[#2F6E5E] hover:bg-[#25584b] text-white text-[11px] font-bold cursor-pointer transition-colors inline-flex items-center justify-center gap-1 shadow-xs disabled:opacity-50"
@@ -879,6 +934,96 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
                               <span>Decline</span>
                             </button>
                           </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Live Housing Supply in Active States Table */}
+          <div className="bg-white dark:bg-[#0B1626] rounded-3xl p-6 sm:p-7 shadow-sm border border-[rgba(11,37,89,0.08)] dark:border-[#233550]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 className="text-base font-bold text-[#0B2559] dark:text-white flex items-center gap-2">
+                  <span>Live Housing Supply in Active States</span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#2F6E5E]/20 text-[#2F6E5E]">
+                    {displayedLiveListings.length} Published Units
+                  </span>
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Published furnished housing listings actively searchable and bookable by travel clinicians.
+                </p>
+              </div>
+            </div>
+
+            {displayedLiveListings.length === 0 ? (
+              <div className="py-8 text-center text-xs text-gray-400">
+                No active live listings found for this filter.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-400 font-bold uppercase text-[10px]">
+                      <th className="py-3 px-3">Property &amp; Host</th>
+                      <th className="py-3 px-3">State &amp; City</th>
+                      <th className="py-3 px-3">Nearest Hospital</th>
+                      <th className="py-3 px-3">Monthly Rent</th>
+                      <th className="py-3 px-3">Status</th>
+                      <th className="py-3 px-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {displayedLiveListings.map((item) => (
+                      <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-[#14233a] transition-colors">
+                        <td className="py-3.5 px-3">
+                          <div className="font-bold text-[#0B2559] dark:text-white">{item.title}</div>
+                          <div className="text-[10px] text-gray-400">Host: {item.hostName || 'Stripe Verified Host'}</div>
+                        </td>
+                        <td className="py-3.5 px-3 text-gray-600 dark:text-gray-300 font-semibold">
+                          <div>{item.city}, {item.state}</div>
+                          <div className="text-[10px] text-gray-400 font-normal">{item.neighborhood || item.city}</div>
+                        </td>
+                        <td className="py-3.5 px-3 text-[#0A6FA8] font-semibold text-[11px]">
+                          {item.nearestHospital || item.proximityToHospital || 'Hospital Proximity'}
+                        </td>
+                        <td className="py-3.5 px-3 font-bold tabular-nums">
+                          ${item.monthlyRate?.toLocaleString()} / mo
+                        </td>
+                        <td className="py-3.5 px-3">
+                          <span className="px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-[#E1EFE9] text-[#2F6E5E]">
+                            Bookable Live
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => setInspectedListing({
+                              id: item.id,
+                              title: item.title,
+                              address_line1: item.neighborhood || item.city,
+                              city: item.city,
+                              state: item.state,
+                              postal_code: '',
+                              nearestHospital: item.nearestHospital || 'Regional Medical Center',
+                              monthly_rent: item.monthlyRate,
+                              property_type: item.propertyType || 'entire_home',
+                              host_name: item.hostName || 'Verified Host',
+                              amenities: typeof item.amenities === 'string'
+                                ? item.amenities
+                                : item.amenities
+                                ? Object.entries(item.amenities).filter(([, v]) => Boolean(v)).map(([k]) => k.replace(/([A-Z])/g, ' $1')).join(', ')
+                                : 'Daytime quiet hours, Blackout curtains, In-unit laundry, High-speed Wi-Fi',
+                              is_published: true,
+                            })}
+                            className="h-8 px-2.5 rounded-lg bg-[#EFF6FB] hover:bg-[#E0EFF9] dark:bg-[#182840] text-[#0A6FA8] dark:text-[#3E9AD1] text-[11px] font-bold transition-colors cursor-pointer inline-flex items-center justify-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-[13px]">info</span>
+                            <span>Inspect</span>
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -1221,6 +1366,235 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
               >
                 Confirm Decline
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: Expandable Property Drawer / Full Inspection Modal */}
+      {inspectedListing && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#0B1626] rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-[rgba(11,37,89,0.1)] space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#0A6FA8]">real_estate_agent</span>
+                <div>
+                  <h3 className="font-bold text-[#0B2559] dark:text-white text-base">
+                    Property Waitlist Inspection
+                  </h3>
+                  <span className="text-[11px] text-gray-400 font-mono">ID: {inspectedListing.id}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInspectedListing(null)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-4 rounded-2xl bg-[#EFF6FB] dark:bg-[#15233a] border border-[#0A6FA8]/20 space-y-2">
+                <div className="font-bold text-[#0B2559] dark:text-white text-sm">
+                  {inspectedListing.title}
+                </div>
+                <div className="text-gray-600 dark:text-gray-300">
+                  <span className="font-semibold text-gray-500">Address:</span> {inspectedListing.address_line1}, {inspectedListing.city}, {inspectedListing.state} {inspectedListing.postal_code}
+                </div>
+                <div className="text-gray-600 dark:text-gray-300">
+                  <span className="font-semibold text-gray-500">Target Clinical Hub:</span> {inspectedListing.nearestHospital}
+                </div>
+                <div className="flex items-center gap-4 pt-1">
+                  <div>
+                    <span className="text-gray-400 text-[10px] block uppercase font-bold">Monthly Rent</span>
+                    <span className="text-sm font-extrabold text-[#0B2559] dark:text-white tabular-nums">${inspectedListing.monthly_rent?.toLocaleString()} / mo</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 text-[10px] block uppercase font-bold">Property Type</span>
+                    <span className="text-xs font-bold text-[#0A6FA8]">{inspectedListing.property_type === 'entire_home' ? 'Entire Home' : 'Individual Room'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 text-[10px] block uppercase font-bold">Host</span>
+                    <span className="text-xs font-semibold">{inspectedListing.host_name}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">
+                  Clinician Rest &amp; Sanctuary Amenities:
+                </label>
+                <div className="p-3 rounded-xl bg-gray-50 dark:bg-[#0E1A2E] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+                  {inspectedListing.amenities || 'Daytime quiet hours, Blackout curtains, In-unit laundry, High-speed Wi-Fi'}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">
+                  Launch Authority &amp; State Compliance:
+                </label>
+                <div className="p-3 rounded-xl bg-gray-50 dark:bg-[#0E1A2E] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 flex items-center justify-between">
+                  <span>State Footprint: <strong className="text-[#0B2559] dark:text-white">{getStateName(inspectedListing.state || 'FL')} ({inspectedListing.state})</strong></span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    inspectedListing.is_published
+                      ? 'bg-[#E1EFE9] text-[#2F6E5E]'
+                      : 'bg-[#FBF0D6] text-[#B9822E]'
+                  }`}>
+                    {inspectedListing.is_published ? 'Active Live' : 'Pre-Launch Waitlist'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800">
+              <button
+                type="button"
+                onClick={() => setInspectedListing(null)}
+                className="h-10 px-4 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
+              >
+                Close
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const itm = inspectedListing;
+                    setInspectedListing(null);
+                    setRejectionModalListing(itm);
+                  }}
+                  className="h-10 px-4 rounded-xl bg-red-100 hover:bg-red-200 text-[#A8452E] text-xs font-bold cursor-pointer transition-colors"
+                >
+                  Decline
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const id = inspectedListing.id;
+                    setInspectedListing(null);
+                    await handleExecuteWaitlistAction(id, 'activate_and_approve');
+                  }}
+                  className="h-10 px-5 rounded-xl bg-[#2F6E5E] hover:bg-[#25584b] text-white text-xs font-bold cursor-pointer transition-colors inline-flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-[15px]">check</span>
+                  <span>Approve &amp; Publish Live</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 5: Expandable Demand Market Inspection Modal */}
+      {inspectedMarket && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#0B1626] rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-[rgba(11,37,89,0.1)] space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#0A6FA8]">local_hospital</span>
+                <h3 className="font-bold text-[#0B2559] dark:text-white text-base">
+                  Hospital Demand &amp; Shortage Analysis
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInspectedMarket(null)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-4 rounded-2xl bg-[#EFF6FB] dark:bg-[#15233a] border border-[#0A6FA8]/20 space-y-2">
+                <div className="font-bold text-[#0B2559] dark:text-white text-sm">
+                  {inspectedMarket.hospitalName} ({inspectedMarket.state})
+                </div>
+                <div className="text-gray-500">
+                  Metro Location: <span className="font-semibold text-[#0B2559] dark:text-white">{inspectedMarket.city}, {inspectedMarket.state}</span>
+                </div>
+                <div className="text-gray-500">
+                  Target Postal Corridors: <span className="font-semibold text-[#0B2559] dark:text-white">{inspectedMarket.targetZipCodes?.join(', ')}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[rgba(11,37,89,0.06)] dark:border-[#233550]">
+                  <div>
+                    <span className="text-[10px] text-gray-400 uppercase font-bold block">30d Searches</span>
+                    <span className="text-base font-extrabold text-[#0B2559] dark:text-white tabular-nums">{inspectedMarket.searches30d?.toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-400 uppercase font-bold block">Live Supply</span>
+                    <span className="text-base font-extrabold text-[#0A6FA8] tabular-nums">{inspectedMarket.activeSupply} units</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-400 uppercase font-bold block">Avg Budget</span>
+                    <span className="text-base font-extrabold text-[#2F6E5E] tabular-nums">${inspectedMarket.averageMonthlyBudget?.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">
+                  Top Requested Clinician Amenities in this Corridor:
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {(inspectedMarket.topRequestedAmenities || ['Dedicated Parking', 'Daytime Quiet Hours', 'In-Unit Washer', 'Blackout Shades']).map((amenity: string) => (
+                    <span key={amenity} className="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold text-[11px]">
+                      {amenity}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">
+                  Recommended Recruitment Priority:
+                </label>
+                <div className="p-3 rounded-xl bg-gray-50 dark:bg-[#0E1A2E] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 flex items-center justify-between">
+                  <span className="font-bold" style={{ color: inspectedMarket.deficitColor }}>
+                    {inspectedMarket.deficitLabel}
+                  </span>
+                  <span className="text-[11px] text-gray-500">
+                    High Clinician Inquiries
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800">
+              <button
+                type="button"
+                onClick={() => setInspectedMarket(null)}
+                className="h-10 px-4 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
+              >
+                Close
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const m = inspectedMarket;
+                    setInspectedMarket(null);
+                    setMapCenter({ lat: m.lat, lng: m.lng, zoom: 13 });
+                  }}
+                  className="h-10 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-bold cursor-pointer inline-flex items-center justify-center gap-1.5"
+                >
+                  <span className="material-symbols-outlined text-[15px]">pin_drop</span>
+                  <span>View on Map</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const m = inspectedMarket;
+                    setInspectedMarket(null);
+                    setSelectedMarketForBriefing(m);
+                    setIsRecruitModalOpen(true);
+                  }}
+                  className="h-10 px-5 rounded-xl bg-[#0A6FA8] hover:bg-[#0C7EBF] text-white text-xs font-bold cursor-pointer inline-flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-[15px]">campaign</span>
+                  <span>Outreach Briefing</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

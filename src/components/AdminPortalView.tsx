@@ -3,6 +3,7 @@ import { AdminLicenseReview, BookingRequest, HousingListing } from '../types';
 import { getProfessionLabel } from '../lib/professionConstants';
 import { AdminSupplyDensityView } from './AdminSupplyDensityView';
 import { AdminAnalyticsDashboard } from './AdminAnalyticsDashboard';
+import { AdminActivityLogView } from './AdminActivityLogView';
 
 interface AdminPortalViewProps {
   currentUser?: any;
@@ -12,6 +13,8 @@ interface AdminPortalViewProps {
   bookingRequests?: BookingRequest[];
   listings?: HousingListing[];
   isDeveloper?: boolean;
+  onStateActivated?: (stateCode: string, newActiveStates?: string[]) => void;
+  activeStates?: string[];
 }
 
 export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
@@ -19,8 +22,10 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   isNightShiftMode,
   bookingRequests = [],
   listings = [],
+  onStateActivated,
+  activeStates,
 }) => {
-  const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'clinicians' | 'properties' | 'bookings' | 'supply_density'>('analytics');
+  const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'clinicians' | 'properties' | 'bookings' | 'supply_density' | 'activity_log'>('analytics');
   const [reviews, setReviews] = useState<AdminLicenseReview[]>([]);
   const [hostReviews, setHostReviews] = useState<any[]>([]);
   const [managedListings, setManagedListings] = useState<HousingListing[]>(listings);
@@ -301,8 +306,8 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
           </h1>
         </div>
 
-        {/* Tab Navigation (Strictly Uniform h-10 Heights & Alignments) */}
-        <div className="bg-white dark:bg-[#0B1626] p-1.5 rounded-2xl shadow-sm border border-[rgba(11,37,89,0.08)] dark:border-[#233550] flex flex-wrap items-center gap-1.5">
+        {/* Tab Navigation (Horizontal Scrollable Segment Control) */}
+        <div className="bg-white dark:bg-[#0B1626] p-1.5 rounded-2xl shadow-xs border border-[rgba(11,37,89,0.08)] dark:border-[#233550] flex items-center gap-1.5 overflow-x-auto scrollbar-none whitespace-nowrap max-w-full">
           <button
             type="button"
             onClick={() => setActiveAdminTab('analytics')}
@@ -378,6 +383,22 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
             <span>States &amp; Supply</span>
             <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500 text-white font-bold tabular-nums">
               Expansion
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveAdminTab('activity_log')}
+            className={`h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 ${
+              activeAdminTab === 'activity_log'
+                ? 'bg-[#0B2559] dark:bg-[#0A6FA8] text-white shadow-xs'
+                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#182840]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">receipt_long</span>
+            <span>Activity Log</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-[#0A6FA8]/20 text-[#0A6FA8] dark:text-[#3E9AD1] font-bold tabular-nums">
+              Audit
             </span>
           </button>
         </div>
@@ -808,6 +829,19 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
             setTimeout(() => setActionNotice(null), 5000);
           }}
           managedListings={managedListings}
+          onStateActivated={onStateActivated}
+          activeStates={activeStates}
+        />
+      )}
+
+      {/* TAB 5: Activity Log & Compliance Audit Stream */}
+      {activeAdminTab === 'activity_log' && (
+        <AdminActivityLogView
+          isNightShiftMode={isNightShiftMode}
+          onActionNotice={(msg) => {
+            setActionNotice(msg);
+            setTimeout(() => setActionNotice(null), 5000);
+          }}
         />
       )}
     </div>

@@ -43,7 +43,7 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
   useBodyScrollLock(isOpen);
 
   const [agreedToPolicy, setAgreedToPolicy] = useState(true);
-  const [specialNote, setSpecialNote] = useState('Hi Sarah! I am rotating day shifts in the PICU at Duke University Hospital. Excited for the quiet sanctuary.');
+  const [specialNote, setSpecialNote] = useState('');
   const [selectedTestCard, setSelectedTestCard] = useState(STRIPE_TEST_CARDS[0]);
   const [cardNumber, setCardNumber] = useState('4242 •••• •••• 4242');
   const [cardExpiry, setCardExpiry] = useState('12/28');
