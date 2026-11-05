@@ -4,6 +4,7 @@ import { getProfessionLabel } from '../lib/professionConstants';
 import { AdminSupplyDensityView } from './AdminSupplyDensityView';
 import { AdminAnalyticsDashboard } from './AdminAnalyticsDashboard';
 import { AdminActivityLogView } from './AdminActivityLogView';
+import { AdminPagination } from './AdminPagination';
 
 interface AdminPortalViewProps {
   currentUser?: any;
@@ -31,6 +32,15 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   const [managedListings, setManagedListings] = useState<HousingListing[]>(listings);
   const [dbBookings, setDbBookings] = useState<BookingRequest[]>(bookingRequests);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [clinicianPage, setClinicianPage] = useState(1);
+  const [hostPage, setHostPage] = useState(1);
+  const [propertyPage, setPropertyPage] = useState(1);
+  const [bookingPage, setBookingPage] = useState(1);
+  const [adminPageSize, setAdminPageSize] = useState(10);
+  useEffect(() => { setClinicianPage(1); }, [reviews.length, adminPageSize]);
+  useEffect(() => { setHostPage(1); }, [hostReviews.length, adminPageSize]);
+  useEffect(() => { setPropertyPage(1); }, [managedListings.length, adminPageSize]);
+  useEffect(() => { setBookingPage(1); }, [dbBookings.length, adminPageSize]);
 
   // Fetch live bookings from backend API
   useEffect(() => {
@@ -469,7 +479,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {reviews.map((r) => (
+                  {reviews.slice((clinicianPage - 1) * adminPageSize, clinicianPage * adminPageSize).map((r) => (
                     <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-[#14233a] transition-colors">
                       <td className="py-3.5 px-3 font-bold text-[#0B2559] dark:text-white">
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -585,6 +595,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                 </tbody>
               </table>
             </div>
+            <AdminPagination total={reviews.length} page={clinicianPage} pageSize={adminPageSize} onPageChange={setClinicianPage} onPageSizeChange={setAdminPageSize} />
           </div>
         </div>
       )}
@@ -621,7 +632,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {hostReviews.map((h) => (
+                    {hostReviews.slice((hostPage - 1) * adminPageSize, hostPage * adminPageSize).map((h) => (
                       <tr key={'host-'+h.id} className="hover:bg-gray-50 dark:hover:bg-[#14233a] transition-colors">
                         <td className="py-3.5 px-3 font-bold text-[#0B2559] dark:text-white">{h.hostName}</td>
                         <td className="py-3.5 px-3 font-mono text-gray-500">{h.stripeAccountId || 'None'}</td>
@@ -671,6 +682,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   </tbody>
                 </table>
               </div>
+              <AdminPagination total={hostReviews.length} page={hostPage} pageSize={adminPageSize} onPageChange={setHostPage} onPageSizeChange={setAdminPageSize} />
             </div>
 
             <h3 className="text-md font-bold text-[#0B2559] dark:text-white mb-3 mt-4">Property Listings</h3>
@@ -688,7 +700,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {managedListings.map((l) => (
+                  {managedListings.slice((propertyPage - 1) * adminPageSize, propertyPage * adminPageSize).map((l) => (
                     <tr key={l.id} className="hover:bg-gray-50 dark:hover:bg-[#14233a] transition-colors">
                       <td className="py-3.5 px-3 font-bold text-[#0B2559] dark:text-white">
                         {l.title}
@@ -740,6 +752,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                 </tbody>
               </table>
             </div>
+            <AdminPagination total={managedListings.length} page={propertyPage} pageSize={adminPageSize} onPageChange={setPropertyPage} onPageSizeChange={setAdminPageSize} />
           </div>
         </div>
       )}
@@ -781,7 +794,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {dbBookings.map((b) => (
+                    {dbBookings.slice((bookingPage - 1) * adminPageSize, bookingPage * adminPageSize).map((b) => (
                       <tr key={b.id} className="hover:bg-gray-50 dark:hover:bg-[#14233a] transition-colors">
                         <td className="py-3.5 px-3 font-mono font-bold text-[#0B2559] dark:text-white">
                           {b.id}
@@ -831,6 +844,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                 </table>
               </div>
             )}
+            <AdminPagination total={dbBookings.length} page={bookingPage} pageSize={adminPageSize} onPageChange={setBookingPage} onPageSizeChange={setAdminPageSize} />
           </div>
         </div>
       )}
