@@ -910,7 +910,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
             <div className="bg-white dark:bg-[#0B1626] rounded-2xl p-4 border border-[rgba(11,37,89,0.08)] dark:border-[#233550] shadow-xs">
               <span className="text-[11px] text-gray-500 block">Total Gross Booked</span>
               <span className="text-xl sm:text-2xl font-bold text-[#0B2559] dark:text-white tabular-nums block mt-1">
-                ${earningsData?.summary?.totalGross ? Number(earningsData.summary.totalGross).toLocaleString() : Math.round(totalMonthlyNet).toLocaleString()}.00
+                ${Number(earningsData?.earnings?.totalGross ?? payoutBookings.reduce((sum, booking) => sum + Number(booking.totalInitialCharge || booking.monthlyRent + (booking.cleaningFee || 0)), 0)).toLocaleString()}.00
               </span>
               <span className="text-[10px] text-gray-400">Clinician payments</span>
             </div>
@@ -918,7 +918,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
             <div className="bg-white dark:bg-[#0B1626] rounded-2xl p-4 border border-[rgba(11,37,89,0.08)] dark:border-[#233550] shadow-xs">
               <span className="text-[11px] text-gray-500 block">Net Host Payouts</span>
               <span className="text-xl sm:text-2xl font-bold text-[#2F6E5E] dark:text-[#aff0db] tabular-nums block mt-1">
-                ${earningsData?.summary?.totalHostNet ? Number(earningsData.summary.totalHostNet).toLocaleString() : Math.round(totalMonthlyNet).toLocaleString()}.00
+                ${Number(earningsData?.earnings?.totalNetPayout ?? totalMonthlyNet).toLocaleString()}.00
               </span>
               <span className="text-[10px] text-[#2F6E5E] font-semibold">After recorded commission</span>
             </div>
@@ -926,9 +926,9 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
             <div className="bg-white dark:bg-[#0B1626] rounded-2xl p-4 border border-[rgba(11,37,89,0.08)] dark:border-[#233550] shadow-xs">
               <span className="text-[11px] text-gray-500 block">Platform Commission</span>
               <span className="text-xl sm:text-2xl font-bold text-[#0B2559] dark:text-white tabular-nums block mt-1">
-                ${earningsData?.summary?.totalPlatformFees ? Number(earningsData.summary.totalPlatformFees).toLocaleString() : '0'}.00
+                ${Number(earningsData?.earnings?.totalPlatformFee ?? payoutBookings.reduce((sum, booking) => sum + Number(booking.platformFeeAmount || 0), 0)).toLocaleString()}.00
               </span>
-              <span className="text-[10px] text-gray-400">Verification &amp; insurance</span>
+              <span className="text-[10px] text-gray-400">Deducted from eligible rent</span>
             </div>
 
             <div className="bg-white dark:bg-[#0B1626] rounded-2xl p-4 border border-[rgba(11,37,89,0.08)] dark:border-[#233550] shadow-xs">
@@ -946,15 +946,15 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
             <div className="p-4 border-b border-gray-100 dark:border-[#233550] flex items-center justify-between">
               <h3 className="font-bold text-sm text-[#0B2559] dark:text-white">Transaction Breakdown</h3>
               <span className="text-xs text-gray-400 tabular-nums">
-                {earningsData?.transactions?.length || payoutBookings.length} rotations
+                {earningsData?.earnings?.items?.length || payoutBookings.length} rotations
               </span>
             </div>
             <div className="divide-y divide-gray-100 dark:divide-[#233550]">
-              {(earningsData?.transactions?.length > 0 ? earningsData.transactions : payoutBookings).map((item: any, idx: number) => {
-                const amount = item.amount || item.totalInitialCharge || 0;
+              {(earningsData?.earnings?.items?.length > 0 ? earningsData.earnings.items : payoutBookings).map((item: any, idx: number) => {
+                const amount = item.grossEarnings ?? item.amount ?? item.totalInitialCharge ?? 0;
                 const net = item.netPayout ?? item.host_net_payout ?? item.hostNetPayout ?? (amount - Number(item.platformFeeDeducted ?? item.platformFeeAmount ?? 0));
-                const title = item.listing_title || item.listingTitle || 'Furnished Sanctuary';
-                const date = item.date || item.created_at || item.startDate || 'Recent stay';
+                const title = item.listingTitle || item.listing_title || 'Furnished Sanctuary';
+                const date = item.startDate || item.date || item.created_at || 'Recent stay';
                 return (
                   <div key={idx} className="p-4 flex items-center justify-between text-xs">
                     <div>
