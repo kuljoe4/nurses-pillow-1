@@ -111,14 +111,15 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
 
   if (!listing) return null;
 
-  // Sample photo mosaic collection if listing only has 1 or 2
-  const galleryPhotos = [
-    listing.images?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80',
-    listing.images?.[1] || 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
-    listing.images?.[2] || 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=600&q=80',
-    listing.images?.[3] || 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=600&q=80',
-    'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=600&q=80',
-  ];
+  // Only show photographs actually attached to this listing. Never substitute stock
+  // photographs that could be mistaken for the property being booked.
+  const suppliedPhotos = Array.isArray(listing.images)
+    ? listing.images.filter((image: unknown): image is string => typeof image === 'string' && image.trim().length > 0)
+    : [];
+  const hasListingPhotos = suppliedPhotos.length > 0;
+  const galleryPhotos = hasListingPhotos
+    ? suppliedPhotos
+    : ['data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22800%22 height=%22450%22 viewBox=%220 0 800 450%22%3E%3Crect width=%22800%22 height=%22450%22 fill=%22%23e8edf2%22/%3E%3Cpath d=%22M340 185h120v95H340z M320 185l80-55 80 55%22 fill=%22none%22 stroke=%22%2394a3b8%22 stroke-width=%2210%22 stroke-linejoin=%22round%22/%3E%3Ctext x=%22400%22 y=%22325%22 text-anchor=%22middle%22 font-family=%22Arial%22 font-size=%2224%22 fill=%22%2364748b%22%3EProperty photos not provided%3C/text%3E%3C/svg%3E'];
 
   return (
     <motion.div
@@ -167,7 +168,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             </span>
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#f2f3ff] dark:bg-[#182840] text-xs font-semibold">
               <span className="material-symbols-outlined text-[14px] text-[#745b0d] dark:text-[#ffdf91]">star</span>
-              <span>{listing.nurseRating || 4.98} ({listing.reviewsCount || 19} traveling clinician reviews)</span>
+              <span>{Number(listing.reviewsCount || 0) > 0 ? `${listing.nurseRating || '—'} (${listing.reviewsCount} reviews)` : 'No reviews yet'}</span>
             </span>
           </div>
 
