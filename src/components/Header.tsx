@@ -57,6 +57,8 @@ export const Header: React.FC<HeaderProps> = ({
   const [headerHeight, setHeaderHeight] = useState<number>(72);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuTriggerRef = useRef<HTMLButtonElement>(null);
 
   // Track dynamic header height to prevent any clipping of dropdowns or mobile drawers
   useEffect(() => {
@@ -102,6 +104,46 @@ export const Header: React.FC<HeaderProps> = ({
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
+
+  // Keep keyboard focus inside the modal drawer and restore it to the trigger on close.
+  useEffect(() => {
+    if (!isMobileMenuOpen) {
+      mobileMenuTriggerRef.current?.focus();
+      return;
+    }
+
+    const drawer = mobileMenuRef.current;
+    if (!drawer) return;
+    const getFocusable = () => Array.from(drawer.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )).filter((element) => element.getAttribute('aria-hidden') !== 'true');
+
+    const focusFirst = () => getFocusable()[0]?.focus();
+    const frame = window.requestAnimationFrame(focusFirst);
+    const trapFocus = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      const focusable = getFocusable();
+      if (focusable.length === 0) {
+        event.preventDefault();
+        drawer.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !drawer.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !drawer.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    drawer.addEventListener('keydown', trapFocus);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      drawer.removeEventListener('keydown', trapFocus);
+    };
+  }, [isMobileMenuOpen]);
 
   // Lock body scroll when mobile menu is open to prevent background scrolling
   useEffect(() => {
@@ -839,6 +881,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Mobile & Tablet Unified Menu Toggle Button - Pinned with Saved Counter Badge */}
           <button
             id="mobile-menu-toggle-button"
+            ref={mobileMenuTriggerRef}
             onClick={() => {
               setIsMobileMenuOpen(!isMobileMenuOpen);
             }}
@@ -870,6 +913,8 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Mobile & Tablet Responsive Navigation Drawer */}
       <div
         id="mobile-nav-menu"
+        ref={mobileMenuRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label="Navigation menu"
