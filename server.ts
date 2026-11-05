@@ -1165,6 +1165,9 @@ async function startServer() {
         JSON.stringify(checklistData)
       ]);
 
+      activeStatesList.add(st);
+      territoryComplianceChecklist.set(st, checklistData);
+
       // Territory activation only opens the market. It must never bypass host,
       // property, photo, or listing-level moderation.
       await db.query(
