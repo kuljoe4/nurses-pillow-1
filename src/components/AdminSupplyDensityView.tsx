@@ -298,10 +298,9 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
     return true;
   });
 
-  return 
-
   useEffect(() => { setDemandPage(1); setWaitlistPage(1); setLivePage(1); }, [selectedState, stateFilterTab, displayedDemandMarkets.length, displayedWaitlistListings.length, displayedLiveListings.length]);
-(
+
+  return (
     <div className="space-y-6">
       {/* Toast Notice */}
       {toastMessage && (
