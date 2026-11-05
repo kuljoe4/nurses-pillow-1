@@ -28,6 +28,8 @@ export const AdminActivityLogView: React.FC<AdminActivityLogViewProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [inspectedLog, setInspectedLog] = useState<AuditLogEntry | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // High-fidelity baseline audit activity logs representing real system operations
   const baselineLogs: AuditLogEntry[] = useMemo(() => [
@@ -240,6 +242,13 @@ export const AdminActivityLogView: React.FC<AdminActivityLogViewProps> = ({
       return true;
     });
   }, [logs, selectedCategory, selectedStatus, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / pageSize));
+  const pageLogs = filteredLogs.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedCategory, selectedStatus, searchQuery, pageSize]);
 
   // Export Audit Logs as CSV
   const handleExportCSV = () => {
@@ -576,7 +585,7 @@ export const AdminActivityLogView: React.FC<AdminActivityLogViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {filteredLogs.map((log) => (
+                {pageLogs.map((log) => (
                   <tr
                     key={log.id}
                     onClick={() => setInspectedLog(log)}
@@ -626,6 +635,26 @@ export const AdminActivityLogView: React.FC<AdminActivityLogViewProps> = ({
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {filteredLogs.length > 0 && (
+          <div className="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-4 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+              <span>Showing {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, filteredLogs.length)} of {filteredLogs.length}</span>
+              <label className="inline-flex items-center gap-2">
+                <span>Rows</span>
+                <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))} className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs dark:border-gray-700 dark:bg-[#14233a]">
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1} className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700">Previous</button>
+              <span className="min-w-20 text-center text-xs text-gray-500 dark:text-gray-400">Page {page} of {totalPages}</span>
+              <button type="button" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages} className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700">Next</button>
+            </div>
           </div>
         )}
       </div>
