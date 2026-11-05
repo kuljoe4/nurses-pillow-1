@@ -298,12 +298,11 @@ export const NurseDashboardView: React.FC<NurseDashboardViewProps> = ({
 
       {/* Segmented Tab Navigation Capsule */}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-        <div role="tablist" aria-label="Clinician dashboard sections" className="np-dashboard-nav inline-flex p-1 rounded-full bg-[#EFF6FB] dark:bg-[#0E1A2E] border border-[rgba(11,37,89,0.06)] dark:border-[#233550]">
+        <div  aria-label="Clinician dashboard sections" className="np-dashboard-nav inline-flex p-1 rounded-full bg-[#EFF6FB] dark:bg-[#0E1A2E] border border-[rgba(11,37,89,0.06)] dark:border-[#233550]">
           <button
             type="button"
             onClick={() => setActiveTab('bookings')}
-            role="tab"
-            aria-selected={activeTab === 'bookings'}
+            aria-current={activeTab === 'bookings' ? 'page' : undefined}
             className={`py-1.5 px-3.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'bookings'
                 ? 'bg-white dark:bg-[#182840] text-[#0B2559] dark:text-white shadow-[0_1px_3px_rgba(11,37,89,0.08)]'
@@ -322,8 +321,7 @@ export const NurseDashboardView: React.FC<NurseDashboardViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('saved')}
-            role="tab"
-            aria-selected={activeTab === 'saved'}
+            aria-current={activeTab === 'saved' ? 'page' : undefined}
             className={`py-1.5 px-3.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'saved'
                 ? 'bg-white dark:bg-[#182840] text-[#0B2559] dark:text-white shadow-[0_1px_3px_rgba(11,37,89,0.08)]'
@@ -340,8 +338,7 @@ export const NurseDashboardView: React.FC<NurseDashboardViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('verification')}
-            role="tab"
-            aria-selected={activeTab === 'verification'}
+            aria-current={activeTab === 'verification' ? 'page' : undefined}
             className={`py-1.5 px-3.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'verification'
                 ? 'bg-white dark:bg-[#182840] text-[#0B2559] dark:text-white shadow-[0_1px_3px_rgba(11,37,89,0.08)]'
