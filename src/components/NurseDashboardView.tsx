@@ -658,7 +658,7 @@ export const NurseDashboardView: React.FC<NurseDashboardViewProps> = ({
                 </div>
                 <div>
                   <div className="font-bold text-xs text-[#0B2559] dark:text-white">Government Photo ID &amp; Biometrics</div>
-                  <div className="text-[10px] text-gray-500">RealID and live facial match verified</div>
+                  <div className="text-[10px] text-gray-500">Government identity review status</div>
                 </div>
               </div>
               <span
@@ -696,7 +696,7 @@ export const NurseDashboardView: React.FC<NurseDashboardViewProps> = ({
                 </div>
                 <div>
                   <div className="font-bold text-xs text-[#0B2559] dark:text-white">State Board Nursing License</div>
-                  <div className="text-[10px] text-gray-500">Nursys primary source registry active</div>
+                  <div className="text-[10px] text-gray-500">Clinical license review status</div>
                 </div>
               </div>
               <span
@@ -726,7 +726,7 @@ export const NurseDashboardView: React.FC<NurseDashboardViewProps> = ({
           <div className="p-3.5 rounded-xl bg-[#E1EFE9] dark:bg-[#142823] text-xs text-[#2F6E5E] dark:text-[#aff0db] leading-relaxed flex items-start gap-2.5">
             <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">lock</span>
             <div>
-              <strong>Zero Raw License Exposure Safeguard:</strong> In compliance with Nurses Pillow privacy standards, raw state license numbers and uploaded identity documents are permanently purged from server storage post-verification. Hosts only receive verified trust audit badges.
+              <strong>Verification privacy:</strong> Uploaded identity documents are removed after approval. Hosts see the clinician's verification status, not the submitted documents.
             </div>
           </div>
 
