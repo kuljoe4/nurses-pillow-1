@@ -3,6 +3,7 @@ import { Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import { ALL_US_STATES, STATE_NAMES, STATE_COORDINATES, getStateName, getStateCoordinates, isStateActive } from '../lib/constants/states';
 import { HousingListing } from '../types';
 import { AdminPagination } from './AdminPagination';
+import { AdminResponsiveTableLabels } from './AdminResponsiveTableLabels';
 
 interface AdminSupplyDensityViewProps {
   isNightShiftMode: boolean;
@@ -302,6 +303,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
 
   return (
     <div className="space-y-6">
+      <AdminResponsiveTableLabels />
       {/* Toast Notice */}
       {toastMessage && (
         <div className={`p-3.5 rounded-2xl text-xs font-semibold flex items-center justify-between gap-3 shadow-sm border transition-all animate-in fade-in duration-200 ${
@@ -747,7 +749,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto admin-responsive-table">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-400 font-bold uppercase text-[10px]">
