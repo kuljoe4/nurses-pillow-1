@@ -1026,8 +1026,8 @@ async function startServer() {
     } catch (err: any) {
       console.error('Error fetching public active territories:', err);
       res.json({
-        activeStates: Array.from(activeStatesList),
-        totalActiveCount: activeStatesList.size,
+        activeStates: [],
+        totalActiveCount: 0,
         stateCounts: {},
       });
     }
