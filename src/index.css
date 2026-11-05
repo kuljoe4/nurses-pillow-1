@@ -505,3 +505,112 @@ img[class*="w-full"][class*="h-full"] {
     scroll-behavior: auto;
   }
 }
+
+
+/* Admin data tables become compact, labelled cards on phones. */
+@media (max-width: 767px) {
+  .admin-responsive-table {
+    overflow: visible !important;
+    width: 100%;
+  }
+
+  .admin-responsive-table table,
+  .admin-responsive-table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .admin-responsive-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .admin-responsive-table tbody {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .admin-responsive-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem 1rem;
+    padding: 0.9rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+  }
+
+  .dark .admin-responsive-table tbody tr {
+    border-color: #233550;
+    background: #0f1d30;
+  }
+
+  .admin-responsive-table tbody td {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow-wrap: anywhere;
+    text-align: left !important;
+  }
+
+  .admin-responsive-table tbody td::before {
+    content: attr(data-label);
+    display: block;
+    color: #8491a5;
+    font-size: 0.6rem;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+  }
+
+  .dark .admin-responsive-table tbody td::before {
+    color: #91a2bb;
+  }
+
+  .admin-responsive-table tbody td:first-child,
+  .admin-responsive-table tbody td:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .admin-responsive-table tbody td:last-child {
+    padding-top: 0.65rem !important;
+    border-top: 1px solid #edf0f4 !important;
+  }
+
+  .dark .admin-responsive-table tbody td:last-child {
+    border-top-color: #263952 !important;
+  }
+
+  .admin-responsive-table tbody td:last-child > div {
+    align-items: flex-start;
+  }
+
+  .admin-responsive-table tbody td > * {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 380px) {
+  .admin-responsive-table tbody tr {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-responsive-table tbody td,
+  .admin-responsive-table tbody td:first-child,
+  .admin-responsive-table tbody td:last-child {
+    grid-column: 1;
+  }
+}
