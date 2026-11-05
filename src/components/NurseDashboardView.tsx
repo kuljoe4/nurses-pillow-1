@@ -169,7 +169,7 @@ export const NurseDashboardView: React.FC<NurseDashboardViewProps> = ({
 
   return (
     <div
-      className={`w-full min-h-[80vh] py-5 sm:py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-4 sm:space-y-5 transition-colors ${
+      className={`np-dashboard np-nurse-dashboard w-full min-h-[80vh] py-5 sm:py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-4 sm:space-y-5 transition-colors ${
         isNightShiftMode ? 'text-[#E6ECF7]' : 'text-[#0B2559]'
       }`}
     >
