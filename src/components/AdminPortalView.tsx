@@ -302,12 +302,11 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         </div>
 
         {/* Tab Navigation (Strictly Uniform h-10 Heights & Alignments) */}
-        <div role="tablist" aria-label="Administrator dashboard sections" className="np-dashboard-nav bg-white dark:bg-[#0B1626] p-1.5 rounded-2xl shadow-sm border border-[rgba(11,37,89,0.08)] dark:border-[#233550] flex flex-wrap items-center gap-1.5">
+        <div  aria-label="Administrator dashboard sections" className="np-dashboard-nav bg-white dark:bg-[#0B1626] p-1.5 rounded-2xl shadow-sm border border-[rgba(11,37,89,0.08)] dark:border-[#233550] flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => setActiveAdminTab('analytics')}
-            role="tab"
-            aria-selected={activeAdminTab === 'analytics'}
+            aria-current={activeAdminTab === 'analytics' ? 'page' : undefined}
             className={`h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 ${
               activeAdminTab === 'analytics'
                 ? 'bg-[#0B2559] dark:bg-[#0A6FA8] text-white shadow-xs'
@@ -321,8 +320,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveAdminTab('clinicians')}
-            role="tab"
-            aria-selected={activeAdminTab === 'clinicians'}
+            aria-current={activeAdminTab === 'clinicians' ? 'page' : undefined}
             className={`h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 ${
               activeAdminTab === 'clinicians'
                 ? 'bg-[#0B2559] dark:bg-[#0A6FA8] text-white shadow-xs'
@@ -340,8 +338,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveAdminTab('properties')}
-            role="tab"
-            aria-selected={activeAdminTab === 'properties'}
+            aria-current={activeAdminTab === 'properties' ? 'page' : undefined}
             className={`h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 ${
               activeAdminTab === 'properties'
                 ? 'bg-[#0B2559] dark:bg-[#0A6FA8] text-white shadow-xs'
@@ -359,8 +356,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveAdminTab('bookings')}
-            role="tab"
-            aria-selected={activeAdminTab === 'bookings'}
+            aria-current={activeAdminTab === 'bookings' ? 'page' : undefined}
             className={`h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 ${
               activeAdminTab === 'bookings'
                 ? 'bg-[#0B2559] dark:bg-[#0A6FA8] text-white shadow-xs'
@@ -376,8 +372,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
           <button
             type="button"
             onClick={() => setActiveAdminTab('supply_density')}
-            role="tab"
-            aria-selected={activeAdminTab === 'supply_density'}
+            aria-current={activeAdminTab === 'supply_density' ? 'page' : undefined}
             className={`h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 ${
               activeAdminTab === 'supply_density'
                 ? 'bg-[#0B2559] dark:bg-[#0A6FA8] text-white shadow-xs'
