@@ -2835,7 +2835,7 @@ async function startServer() {
         const hostConnectedAccountId = hostRes.rows[0]?.stripe_connected_account_id;
 
         if (intentId.startsWith('pi_sandbox_') || intentId.startsWith('pi_test_') || !isLiveKey) {
-          console.log(`[Stripe Capture] Sandbox pre-authorization hold captured for booking ${id} (Direct charge to host with 5% platform split)`);
+          console.log(`[Stripe Capture] Sandbox pre-authorization hold captured for booking ${id} (Direct charge to host using the booking's recorded platform rate)`);
         } else {
           try {
             if (hostConnectedAccountId) {
@@ -3653,7 +3653,7 @@ async function startServer() {
         const { id } = req.params;
 
         if (id.startsWith('pi_sandbox_') || id.startsWith('pi_test_') || !isLiveKey) {
-          console.log(`[Stripe Capture] Captured sandbox hold for PaymentIntent: ${id} with 5% platform split`);
+          console.log(`[Stripe Capture] Captured sandbox hold for PaymentIntent: ${id} using the configured platform rate`);
           return res.json({
             success: true,
             paymentIntent: {
