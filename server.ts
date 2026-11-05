@@ -1199,7 +1199,7 @@ async function startServer() {
     }
     try {
       const stateFilter = (req.query.state as string)?.toUpperCase();
-      let queryText = 'SELECT * FROM listings WHERE (is_expansion_waitlist = true OR (is_published = false AND is_expansion_waitlist IS NOT NULL))';
+      let queryText = 'SELECT * FROM listings WHERE (is_expansion_waitlist = true OR (is_published = false AND is_verified_by_admin = false AND admin_rejection_reason IS NULL))';
       const params: any[] = [];
       if (stateFilter && stateFilter !== 'ALL') {
         if (!ALL_US_STATES[stateFilter]) return res.status(400).json({ error: 'Invalid state filter.' });
