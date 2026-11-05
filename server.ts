@@ -1451,7 +1451,7 @@ async function startServer() {
 
       if (action === 'activate_and_approve') {
         const updateRes = await db.query(
-          "UPDATE listings SET is_expansion_waitlist = false, is_published = true, is_verified_by_admin = true, admin_rejection_reason = NULL WHERE id = $1 RETURNING *",
+          `UPDATE listings l SET is_expansion_waitlist = false, is_published = true, is_verified_by_admin = true, admin_rejection_reason = NULL FROM users u, active_territories t WHERE l.id = $1 AND l.host_id = u.id AND u.is_host_verified = true AND u.stripe_payouts_enabled = true AND UPPER(t.state_code) = UPPER(l.state) AND t.is_active = true RETURNING l.*`,
           [id]
         );
         const updatedRow = updateRes.rows[0];
