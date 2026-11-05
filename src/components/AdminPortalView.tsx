@@ -622,7 +622,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
 
             <div className="mb-8">
               <h3 className="text-md font-bold text-[#0B2559] dark:text-white mb-3">Host Authority (Stripe KYC)</h3>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto admin-responsive-table">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-400 font-bold uppercase text-[10px]">
@@ -688,7 +688,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
             </div>
 
             <h3 className="text-md font-bold text-[#0B2559] dark:text-white mb-3 mt-4">Property Listings</h3>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto admin-responsive-table">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-400 font-bold uppercase text-[10px]">
@@ -782,7 +782,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                 No active booking pre-authorizations recorded yet. Requests from traveling nurses will stream here.
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto admin-responsive-table">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-400 font-bold uppercase text-[10px]">
