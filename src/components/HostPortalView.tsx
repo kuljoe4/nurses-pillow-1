@@ -718,7 +718,9 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
           </h1>
         </div>
 
-        {/* Capsule Segment Switcher */}
+      </div>
+
+      {/* Host workspace navigation */}
         <div role="navigation" aria-label="Host dashboard sections" className="np-dashboard-nav inline-flex p-1 rounded-full bg-[#EFF6FB] dark:bg-[#0E1A2E] border border-[rgba(11,37,89,0.06)] dark:border-[#233550] shrink-0">
           <button
             type="button"
@@ -797,7 +799,9 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
           >
             Earnings &amp; Payouts
           </button>
-        </div>
+          <button type="button" onClick={() => onOpenMessages?.()} className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer text-gray-600 dark:text-gray-300 hover:text-[#0B2559] dark:hover:text-white">
+            Messages
+          </button>
       </div>
 
       {activeHostTab === 'calendar' && (
