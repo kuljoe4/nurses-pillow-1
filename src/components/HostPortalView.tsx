@@ -719,7 +719,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
         </div>
 
         {/* Capsule Segment Switcher */}
-        <div  aria-label="Host dashboard sections" className="np-dashboard-nav inline-flex p-1 rounded-full bg-[#EFF6FB] dark:bg-[#0E1A2E] border border-[rgba(11,37,89,0.06)] dark:border-[#233550] shrink-0">
+        <div role="navigation" aria-label="Host dashboard sections" className="np-dashboard-nav inline-flex p-1 rounded-full bg-[#EFF6FB] dark:bg-[#0E1A2E] border border-[rgba(11,37,89,0.06)] dark:border-[#233550] shrink-0">
           <button
             type="button"
             onClick={() => setActiveHostTab('dashboard')}
