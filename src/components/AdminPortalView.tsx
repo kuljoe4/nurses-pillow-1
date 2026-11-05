@@ -61,7 +61,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               cleaningFee: Number(b.cleaning_fee || 150),
               petFee: Number(b.pet_fee || 0),
               travelerFee: 0,
-              totalInitialCharge: Number(b.total_traveler_charged || 2100),
+              totalInitialCharge: Number(b.totalInitialCharge ?? b.gross_booking_value ?? b.total_traveler_charged ?? 2100),
               hostNetPayout: Number(b.hostNetPayout ?? b.host_payout_amount ?? 0),
               platformFeeAmount: Number(b.platformFeeAmount ?? b.host_platform_fee_amount ?? 0),
               platformFeePercent: Number(b.platformFeePercent ?? b.host_platform_fee_percent ?? 5),
