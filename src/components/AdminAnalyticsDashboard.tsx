@@ -114,8 +114,8 @@ export const AdminAnalyticsDashboard: React.FC<AdminAnalyticsDashboardProps> = (
 
       if (res.ok) {
         const data = await res.json();
-        setFeeSaveSuccess(`Host fee updated to ${hostFeeSlider.toFixed(1)}%. ${data.hostsNotifiedCount || 0} active hosts notified.`);
-        if (onActionNotice) onActionNotice(`Host fee updated to ${hostFeeSlider.toFixed(1)}%`);
+        setFeeSaveSuccess(`Commission saved at ${hostFeeSlider.toFixed(1)}%. It applies to new booking requests; existing bookings keep their recorded rate.`);
+        if (onActionNotice) onActionNotice(`Host commission saved at ${hostFeeSlider.toFixed(1)}%`);
         fetchFeeSettings();
       } else {
         const errData = await res.json();
@@ -560,7 +560,7 @@ export const AdminAnalyticsDashboard: React.FC<AdminAnalyticsDashboardProps> = (
                 disabled={isSavingFee}
                 className="px-5 py-2 rounded-xl text-xs font-semibold bg-[#0A6FA8] text-white hover:bg-[#0C7EBF] disabled:opacity-50 transition-colors shadow-sm"
               >
-                {isSavingFee ? 'Saving...' : 'Apply Rate & Notify Hosts'}
+                {isSavingFee ? 'Saving...' : 'Save Commission Rate'}
               </button>
             </div>
           </div>
