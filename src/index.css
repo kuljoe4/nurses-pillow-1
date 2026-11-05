@@ -427,6 +427,17 @@ img[class*="w-full"][class*="h-full"] {
     overflow-x: auto;
   }
 }
+
+/* Keep long workspace labels readable and preserve a clear active state. */
+.np-dashboard-nav > button[aria-current="page"] {
+  box-shadow: 0 2px 8px rgba(23, 107, 145, .14);
+}
+.np-dashboard-nav > button {
+  min-height: 44px;
+  padding-inline: 14px;
+}
+.np-dashboard-nav::-webkit-scrollbar { height: 5px; }
+.np-dashboard-nav::-webkit-scrollbar-thumb { background: rgba(100, 119, 137, .25); border-radius: 999px; }
 @media (prefers-reduced-motion: reduce) {
   .np-dashboard-nav {
     scroll-behavior: auto;
