@@ -940,8 +940,8 @@ async function startServer() {
         );
       `);
 
-      const initialActiveRows = await db.query('SELECT state_code, compliance_checklist FROM active_territories WHERE is_active = true');
-      if (initialActiveRows.rows.length === 0) {
+      const territoryRows = await db.query('SELECT COUNT(*)::int AS count FROM active_territories');
+      if (Number(territoryRows.rows[0]?.count || 0) === 0) {
         const defaultStates = [
           { code: 'NC', name: 'North Carolina', by: 'Legal Counsel (NC Real Estate Review)' },
           { code: 'MD', name: 'Maryland', by: 'Legal Counsel (MD Regulatory Review)' },
