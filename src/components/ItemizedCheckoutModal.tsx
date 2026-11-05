@@ -56,6 +56,11 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
   const [lastPaymentIntentId, setLastPaymentIntentId] = useState<string | null>(null);
   const [showCancellationDetails, setShowCancellationDetails] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
+  const [selectedExtraOptions, setSelectedExtraOptions] = useState<Record<string, boolean>>({});
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountAmount: number } | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
 
   const [platformFeePercent, setPlatformFeePercent] = useState<number>(5);
   useEffect(() => {
@@ -101,16 +106,9 @@ export const ItemizedCheckoutModal: React.FC<ItemizedCheckoutModalProps> = ({
   const petFee = listing.petFee || 0;
   const parkingFee = listing.parkingFee || 0;
 
-  const [selectedExtraOptions, setSelectedExtraOptions] = useState<Record<string, boolean>>({});
-
   const extraOptionsFee = (listing.extraOptions || []).reduce((acc, opt) => {
     return acc + (selectedExtraOptions[opt.name] ? Number(opt.price) : 0);
   }, 0);
-
-  const [promoCodeInput, setPromoCodeInput] = useState('');
-  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountAmount: number } | null>(null);
-  const [promoError, setPromoError] = useState<string | null>(null);
-  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
 
   const travelerFee = 0;
   // Upfront charge includes prorated accommodation, cleaning fee, and pet fee minus any promo discount.
