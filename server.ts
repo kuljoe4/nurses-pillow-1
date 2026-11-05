@@ -849,7 +849,7 @@ async function startServer() {
   });
 
   // Territory and Compliance Governance Engine
-  const activeStatesList = new Set<string>(['NC', 'MD', 'CT', 'ND', 'KS']);
+  const activeStatesList = new Set<string>(); // Cache only; PostgreSQL is authoritative.
   const territoryComplianceChecklist = new Map<string, {
     marketplaceTaxReviewed: boolean;
     lodgingTaxVerified: boolean;
@@ -1002,11 +1002,9 @@ async function startServer() {
       const activeTerritoriesRes = await db.query(
         'SELECT state_code, state_name, activated_at FROM active_territories WHERE is_active = true'
       );
-      const activeStatesFromDb = activeTerritoriesRes.rows.map((r: any) => r.state_code.toUpperCase());
-      for (const st of activeStatesFromDb) {
-        activeStatesList.add(st);
-      }
-      const activeArr = Array.from(activeStatesList);
+      const activeArr = activeTerritoriesRes.rows
+        .map((r: any) => String(r.state_code).toUpperCase())
+        .filter((code: string) => Boolean(ALL_US_STATES[code]));
       
       const listingsRes = await db.query(
         'SELECT state, COUNT(*) as count FROM listings WHERE is_published = true AND (is_expansion_waitlist = false OR is_expansion_waitlist IS NULL) GROUP BY state'
@@ -1032,31 +1030,35 @@ async function startServer() {
   });
 
   // Helper endpoint: Get all 50 territories with state-specific supply, waitlist, and compliance metrics
-  app.get('/api/admin/territories', async (req: Request, res: Response) => {
+  app.get('/api/admin/territories', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    if (req.user?.role !== 'super_admin' && req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden: Admins only' });
+    }
     try {
       const dbListingsRes = await db.query(
         'SELECT id, state, is_published, is_expansion_waitlist, is_verified_by_admin FROM listings'
       );
       const allListings = dbListingsRes.rows || [];
-
-      // Query verified hosts
+      const activeRows = await db.query('SELECT state_code, compliance_checklist FROM active_territories WHERE is_active = true');
+      const activeStateCodes = new Set(activeRows.rows.map((row: any) => String(row.state_code).toUpperCase()));
+      const complianceByState = new Map(activeRows.rows.map((row: any) => [String(row.state_code).toUpperCase(), row.compliance_checklist || {}]));
       const hostsRes = await db.query(
-        'SELECT id, is_host_verified, stripe_payouts_enabled FROM users WHERE role IN (\'host\', \'dual\') OR is_host_verified = true'
+        "SELECT id FROM users WHERE (role IN ('host', 'dual') OR is_host_verified = true) AND is_host_verified = true AND stripe_payouts_enabled = true"
       );
-      const totalVerifiedHosts = hostsRes.rows.filter((h: any) => h.is_host_verified || h.stripe_payouts_enabled).length;
+      const verifiedHostIds = new Set(hostsRes.rows.map((h: any) => String(h.id)));
 
-      // Evaluate ALL 50 US states + DC
+      // Evaluate all supported US states + DC
       const allStates = Object.keys(ALL_US_STATES);
       
       const territories = allStates.map(st => {
-        const isActive = activeStatesList.has(st);
+        const isActive = activeStateCodes.has(st);
         const stateListings = allListings.filter((l: any) => l.state?.toUpperCase() === st);
         const liveCount = stateListings.filter((l: any) => l.is_published && !l.is_expansion_waitlist).length;
-        
-        // Waitlist count includes DB waitlists
-        const waitlistCount = stateListings.filter((l: any) => l.is_expansion_waitlist || (!l.is_published && !isActive)).length;
+        const waitlistCount = stateListings.filter((l: any) => l.is_expansion_waitlist && !l.is_published).length;
+        const stateHostIds = new Set(stateListings.map((l: any) => String(l.host_id || '')).filter(Boolean));
+        const verifiedHostsCount = Array.from(stateHostIds).filter((id: string) => verifiedHostIds.has(id)).length;
 
-        const compliance = territoryComplianceChecklist.get(st) || {
+        const compliance = (complianceByState.get(st) as any) || {
           marketplaceTaxReviewed: false,
           lodgingTaxVerified: false,
           legalCounselSignedOff: false,
@@ -1064,21 +1066,15 @@ async function startServer() {
 
         const coords = getStateCoordinates(st);
 
-        // State demand gap ratio (searches vs available units)
-        let demandGapRatio = 12;
-        if (!isActive) demandGapRatio = waitlistCount > 5 ? 88 : 72;
-        else if (liveCount < 3) demandGapRatio = 68;
-        else if (liveCount < 8) demandGapRatio = 32;
-
         return {
           stateCode: st,
           stateName: getStateName(st),
           status: isActive ? 'active' : (waitlistCount > 0 ? 'expansion_waitlist' : 'ready_to_launch'),
           activeListingsCount: liveCount,
-          verifiedHostsCount: isActive ? Math.max(1, Math.round(liveCount * 0.75)) : Math.min(waitlistCount, 4),
-          waitlistCount: waitlistCount,
-          demandGapRatio,
-          averageHospitalDistanceMiles: isActive ? (st === 'NC' ? 1.8 : 2.4) : (coords.lat ? 2.1 : 0),
+          verifiedHostsCount,
+          waitlistCount,
+          demandGapRatio: null,
+          averageHospitalDistanceMiles: null,
           hubName: coords.hubName,
           coordinates: coords,
           complianceChecklist: compliance,
@@ -1100,15 +1096,15 @@ async function startServer() {
       });
 
       res.json({
-        activeStates: Array.from(activeStatesList),
+        activeStates: Array.from(activeStateCodes),
         expansionStates: territories.filter(t => t.status !== 'active' && t.waitlistCount > 0).map(t => t.stateCode),
         territories,
         macroStats: {
           totalLiveListings: allListings.filter((l: any) => l.is_published && !l.is_expansion_waitlist).length,
-          totalVerifiedHosts: Math.max(totalVerifiedHosts, 6),
+          totalVerifiedHosts: verifiedHostIds.size,
           preLaunchWaitlistCount: territories.reduce((acc, t) => acc + (t.status !== 'active' ? t.waitlistCount : 0), 0),
-          averageHospitalProximityMiles: 2.3,
-          overallDemandGapRatio: 28,
+          averageHospitalProximityMiles: null,
+          overallDemandGapRatio: null,
         }
       });
     } catch (err: any) {
@@ -1128,6 +1124,9 @@ async function startServer() {
         return res.status(400).json({ error: 'stateCode is required' });
       }
       const st = stateCode.trim().toUpperCase();
+      if (!ALL_US_STATES[st]) {
+        return res.status(400).json({ error: 'Unsupported US state or territory code.' });
+      }
 
       // Check 3-point compliance gate
       const { marketplaceTaxReviewed, lodgingTaxVerified, legalCounselSignedOff } = complianceChecklist || {};
@@ -1137,8 +1136,6 @@ async function startServer() {
         });
       }
 
-      // Add to active territories in memory
-      activeStatesList.add(st);
       const checklistData = {
         marketplaceTaxReviewed: true,
         lodgingTaxVerified: true,
@@ -1146,7 +1143,7 @@ async function startServer() {
         signedOffAt: new Date().toISOString(),
         signedOffBy: req.user.email || req.user.name || 'Admin',
       };
-      territoryComplianceChecklist.set(st, checklistData);
+      // PostgreSQL remains the source of truth; no in-memory mutation is required.
 
       // Persist to active_territories in PostgreSQL
       await db.query(`
@@ -1164,9 +1161,10 @@ async function startServer() {
         JSON.stringify(checklistData)
       ]);
 
-      // Update waitlisted listings in this state to active/verified
+      // Territory activation only opens the market. It must never bypass host,
+      // property, photo, or listing-level moderation.
       await db.query(
-        "UPDATE listings SET is_expansion_waitlist = false, is_published = true, is_verified_by_admin = true WHERE UPPER(state) = $1",
+        "UPDATE listings SET is_expansion_waitlist = false, is_published = false, is_verified_by_admin = false WHERE UPPER(state) = $1 AND is_expansion_waitlist = true",
         [st]
       );
 
@@ -1218,7 +1216,7 @@ async function startServer() {
         is_verified_by_admin: Boolean(row.is_verified_by_admin),
         admin_rejection_reason: row.admin_rejection_reason || null,
         nearestHospital: row.nearest_hospital || `${getStateCoordinates(row.state || 'FL').hubName.split('(')[0]}`,
-        amenities: typeof row.amenities === 'string' ? row.amenities : (Array.isArray(row.amenities) ? row.amenities.join(', ') : 'Quiet hours, Washer, Wi-Fi')
+        amenities: typeof row.amenities === 'string' ? row.amenities : (Array.isArray(row.amenities) ? row.amenities.join(', ') : '')
       }));
 
       res.json(items);
@@ -1766,12 +1764,13 @@ async function startServer() {
   // Hospitals / Healthcare Facilities
   app.get('/api/hospitals', async (req: Request, res: Response) => {
     try {
-      const activeStatesQuery = ACTIVE_STATES.map(state => `'${state}'`).join(', ');
       const result = await db.query(`
-        SELECT id, name, health_system, address_line1 as address, city, state, postal_code as zip,
-        latitude, longitude, trauma_level, teaching_hospital, parking_type, nurse_feedback_score
-        FROM healthcare_facilities
-        WHERE state IN (${activeStatesQuery})
+        SELECT h.id, h.name, h.health_system, h.address_line1 as address, h.city, h.state, h.postal_code as zip,
+          h.latitude, h.longitude, h.trauma_level, h.teaching_hospital, h.parking_type, h.nurse_feedback_score
+        FROM healthcare_facilities h
+        INNER JOIN active_territories t
+          ON UPPER(t.state_code) = UPPER(h.state) AND t.is_active = true
+        ORDER BY h.state, h.city, h.name
       `);
       res.json(result.rows);
     } catch (error: any) {
