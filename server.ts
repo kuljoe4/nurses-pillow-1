@@ -1040,7 +1040,7 @@ async function startServer() {
     }
     try {
       const dbListingsRes = await db.query(
-        'SELECT id, state, is_published, is_expansion_waitlist, is_verified_by_admin FROM listings'
+        'SELECT id, host_id, state, is_published, is_expansion_waitlist, is_verified_by_admin FROM listings'
       );
       const allListings = dbListingsRes.rows || [];
       const activeRows = await db.query('SELECT state_code, compliance_checklist FROM active_territories WHERE is_active = true');
