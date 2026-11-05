@@ -352,7 +352,7 @@ export const NurseDashboardView: React.FC<NurseDashboardViewProps> = ({
               style={{ backgroundColor: userIsVerified ? '#2F6E5E' : '#B9822E' }}
             />
           </button>
-          <button type="button" onClick={() => onOpenMessages()} className="py-1.5 px-3.5 rounded-full text-xs font-bold transition-all cursor-pointer text-gray-600 dark:text-gray-300 hover:text-[#0B2559] dark:hover:text-white">
+          <button type="button" onClick={() => onOpenMessages?.()} className="py-1.5 px-3.5 rounded-full text-xs font-bold transition-all cursor-pointer text-gray-600 dark:text-gray-300 hover:text-[#0B2559] dark:hover:text-white">
             <span className="material-symbols-outlined text-[16px]">forum</span>
             <span>Messages</span>
           </button>
