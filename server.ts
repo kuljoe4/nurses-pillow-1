@@ -972,6 +972,10 @@ async function startServer() {
         }
       }
 
+      const activeRows = await db.query('SELECT state_code FROM active_territories WHERE is_active = true');
+      activeStatesList.clear();
+      for (const row of activeRows.rows) activeStatesList.add(String(row.state_code).toUpperCase());
+
       // Seed initial sample pre-launch listings into PostgreSQL listings table without overriding activated state
       for (const seed of seedWaitlistListings) {
         const coords = getStateCoordinates(seed.state);
