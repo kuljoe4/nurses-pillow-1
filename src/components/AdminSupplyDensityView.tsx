@@ -85,7 +85,8 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
   // Fetch territories data
   const fetchTerritoryData = async () => {
     try {
-      const res = await fetch('/api/admin/territories');
+      const token = localStorage.getItem('np_auth_token') || sessionStorage.getItem('np_auth_token');
+      const res = await fetch('/api/admin/territories', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (res.ok) {
         const data = await res.json();
         setTerritoriesData(data);
@@ -101,7 +102,8 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
       const url = st && st !== 'ALL'
         ? `/api/admin/listings/waitlist?state=${st}`
         : '/api/admin/listings/waitlist';
-      const res = await fetch(url);
+      const token = localStorage.getItem('np_auth_token') || sessionStorage.getItem('np_auth_token');
+      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (res.ok) {
         const data = await res.json();
         setWaitlistListings(data);
@@ -226,7 +228,7 @@ export const AdminSupplyDensityView: React.FC<AdminSupplyDensityViewProps> = ({
 
   const activeStatesList = (propActiveStates && propActiveStates.length > 0
     ? propActiveStates
-    : territoriesData?.activeStates || ['NC', 'MD', 'CT', 'ND', 'KS']).map((s: string) => s.toUpperCase());
+    : territoriesData?.activeStates || []).map((s: string) => s.toUpperCase());
 
   // State Profile for selected state
   const currentTerritory = territoriesData?.territories?.find((t: any) => t.stateCode === selectedState);

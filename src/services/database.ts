@@ -123,8 +123,8 @@ class DatabaseService {
     },
   ];
 
-  private hospitals: DbHospital[] = [...NC_HOSPITAL_SEEDS];
-  private listings: DbListing[] = [...NC_LISTING_SEEDS];
+  private hospitals: DbHospital[] = [];
+  private listings: DbListing[] = [];
   private bookings: DbBooking[] = [];
   private auditLogs: DbAuditLog[] = [
     {
@@ -190,7 +190,7 @@ class DatabaseService {
       const response = await this.fetchWithRetry('/api/hospitals');
       if (response.ok) {
         const data = await response.json().catch(() => null);
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           this.hospitals = data;
         }
       }
@@ -205,7 +205,7 @@ class DatabaseService {
       const response = await this.fetchWithRetry('/api/listings');
       if (response.ok) {
         const data = await response.json().catch(() => null);
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           this.listings = data;
         }
       }
@@ -268,15 +268,11 @@ class DatabaseService {
   }
 
   getHospitals(): DbHospital[] {
-    return Array.isArray(this.hospitals) && this.hospitals.length > 0
-      ? this.hospitals
-      : NC_HOSPITAL_SEEDS;
+    return this.hospitals;
   }
 
   getListings(): any[] {
-    const rawListings = Array.isArray(this.listings) && this.listings.length > 0
-      ? this.listings
-      : NC_LISTING_SEEDS;
+    const rawListings = this.listings;
     return rawListings.map((l: any) => {
       // If it's already mapped (e.g. from the backend API), return it
       if (l.monthlyRate !== undefined) return l;
@@ -297,8 +293,6 @@ class DatabaseService {
         baths: 1,
         sqft: 800,
         images: Array.isArray(l.images) ? l.images : [],
-        nurseRating: 98,
-        reviewsCount: 12,
         amenities: {
           blackoutCurtains: true,
           whiteNoiseMachine: true,
