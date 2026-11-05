@@ -59,6 +59,7 @@ export const Header: React.FC<HeaderProps> = ({
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const mobileMenuTriggerRef = useRef<HTMLButtonElement>(null);
+  const wasMobileMenuOpenRef = useRef(false);
 
   // Track dynamic header height to prevent any clipping of dropdowns or mobile drawers
   useEffect(() => {
@@ -108,9 +109,11 @@ export const Header: React.FC<HeaderProps> = ({
   // Keep keyboard focus inside the modal drawer and restore it to the trigger on close.
   useEffect(() => {
     if (!isMobileMenuOpen) {
-      mobileMenuTriggerRef.current?.focus();
+      if (wasMobileMenuOpenRef.current) mobileMenuTriggerRef.current?.focus();
+      wasMobileMenuOpenRef.current = false;
       return;
     }
+    wasMobileMenuOpenRef.current = true;
 
     const drawer = mobileMenuRef.current;
     if (!drawer) return;
