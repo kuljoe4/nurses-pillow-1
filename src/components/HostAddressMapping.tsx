@@ -255,6 +255,33 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
     return () => controller.abort();
   }, [isConfirmed, coords.lat, coords.lng, currentState]);
 
+  const submitMissingFacilityReport = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setReportSubmitting(true);
+    try {
+      const response = await fetch("/api/hospitals/missing-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          facilityName: facilityReport.name,
+          address: facilityReport.address,
+          city: facilityReport.city,
+          state: facilityReport.state.toUpperCase(),
+          postalCode: facilityReport.postalCode,
+          notes: facilityReport.notes,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Unable to submit report.");
+      setReportSubmitted(true);
+    } catch (error: any) {
+      window.alert(error.message || "Unable to submit the facility report.");
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
   const handleConfirm = () => {
     if (!hasSelectedLocation || !cityState || !addressInput.trim()) return;
     setIsConfirmed(true);
@@ -414,6 +441,22 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
           <div className="space-y-2">
             <p className="text-xs text-gray-600 dark:text-gray-300">No geocoded hospitals were found within 50 miles of this address. This does not mean there are no hospitals nearby; some directory records may still need coordinates or verification.</p>
             <p className="text-[11px] text-gray-500">You can continue with the property address. Hospital proximity will remain unavailable until facility data is verified.</p>
+            <details className="rounded-xl border border-[#d8dfef] dark:border-[#33445f] bg-white/70 dark:bg-[#111e33]/70 p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-[#005684] dark:text-[#93ccff]">Report a missing hospital or healthcare facility</summary>
+              {reportSubmitted ? (
+                <p className="mt-3 text-xs text-[#195b4c] dark:text-[#aff0db]">Thank you. Your facility report has been submitted for review.</p>
+              ) : (
+                <form onSubmit={submitMissingFacilityReport} className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input required minLength={2} placeholder="Facility name" value={facilityReport.name} onChange={e => setFacilityReport(v => ({ ...v, name: e.target.value }))} className="rounded-lg border p-2 text-xs dark:bg-[#0d192b]" />
+                  <input required minLength={5} placeholder="Street address" value={facilityReport.address} onChange={e => setFacilityReport(v => ({ ...v, address: e.target.value }))} className="rounded-lg border p-2 text-xs dark:bg-[#0d192b]" />
+                  <input required placeholder="City" value={facilityReport.city} onChange={e => setFacilityReport(v => ({ ...v, city: e.target.value }))} className="rounded-lg border p-2 text-xs dark:bg-[#0d192b]" />
+                  <input required maxLength={2} minLength={2} placeholder="State (e.g. TX)" value={facilityReport.state} onChange={e => setFacilityReport(v => ({ ...v, state: e.target.value.toUpperCase() }))} className="rounded-lg border p-2 text-xs dark:bg-[#0d192b]" />
+                  <input placeholder="ZIP code (optional)" value={facilityReport.postalCode} onChange={e => setFacilityReport(v => ({ ...v, postalCode: e.target.value }))} className="rounded-lg border p-2 text-xs dark:bg-[#0d192b]" />
+                  <input placeholder="Additional details (optional)" value={facilityReport.notes} onChange={e => setFacilityReport(v => ({ ...v, notes: e.target.value }))} className="rounded-lg border p-2 text-xs dark:bg-[#0d192b]" />
+                  <button type="submit" disabled={reportSubmitting} className="sm:col-span-2 rounded-lg bg-[#001848] text-white py-2 text-xs font-semibold disabled:opacity-50">{reportSubmitting ? "Submitting…" : "Submit facility report"}</button>
+                </form>
+              )}
+            </details>
           </div>
         ) : (
           <div className="space-y-2.5">
