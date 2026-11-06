@@ -21,6 +21,7 @@ interface HostAddressMappingProps {
     placeId?: string | null;
   };
   dynamicActiveStates?: string[];
+  onAddressInvalidated?: () => void;
   onAddressConfirmed?: (addressData: {
     formattedAddress: string;
     lat: number;
@@ -58,6 +59,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
   initialAddress = "",
   initialLocation,
   dynamicActiveStates,
+  onAddressInvalidated,
   onAddressConfirmed,
 }) => {
   const [addressInput, setAddressInput] = useState(initialLocation?.formattedAddress || initialAddress);
@@ -80,16 +82,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
   const [placeId, setPlaceId] = useState<string | null>(initialLocation?.placeId || null);
 
   useEffect(() => {
-    if (!initialLocation) {
-      setAddressInput("");
-      setCoords({ lat: 39.5, lng: -98.35 });
-      setCityState("");
-      setPlaceId(null);
-      setHasSelectedLocation(false);
-      setIsConfirmed(false);
-      setNearbyDistances([]);
-      return;
-    }
+    if (!initialLocation) return;
     setAddressInput(initialLocation.formattedAddress);
     setCoords({ lat: initialLocation.lat, lng: initialLocation.lng });
     setCityState([initialLocation.city, initialLocation.state, initialLocation.zipCode].filter(Boolean).join(", "));
@@ -111,6 +104,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
     setHasSelectedLocation(false);
     setCityState("");
     setNearbyDistances([]);
+    onAddressInvalidated?.();
     setIsDropdownOpen(true);
 
     const trimmed = text.trim();
