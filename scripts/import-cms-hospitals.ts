@@ -80,36 +80,43 @@ async function main() {
           continue;
         }
 
-        const result = await pool.query(
-          `INSERT INTO healthcare_facilities
-            (id, name, address_line1, city, state, postal_code, cms_ccn, facility_type, phone, county,
-             data_source, last_seen_at, data_quality_status, is_active)
-           VALUES
-            ('cms_' || $1, $2, $3, $4, $5, $6, $1, $7, $8, $9,
-             'CMS_HOSPITAL_GENERAL_INFORMATION', NOW(), 'needs_geocoding', TRUE)
-           ON CONFLICT (cms_ccn) DO UPDATE SET
-             name = EXCLUDED.name,
-             address_line1 = EXCLUDED.address_line1,
-             city = EXCLUDED.city,
-             state = EXCLUDED.state,
-             postal_code = EXCLUDED.postal_code,
-             facility_type = EXCLUDED.facility_type,
-             phone = EXCLUDED.phone,
-             county = EXCLUDED.county,
-             data_source = EXCLUDED.data_source,
-             last_seen_at = NOW(),
-             is_active = TRUE,
-             updated_at = NOW()
-           RETURNING (xmax = 0) AS was_inserted`,
-          [
-            ccn, name, address, city, state, zip,
-            value(row, 'hospital_type', 'Hospital Type') || null,
-            value(row, 'telephone_number', 'Telephone Number') || null,
-            value(row, 'countyparish', 'County/Parish') || null,
-          ]
+        const values = [
+          ccn, name, address, city, state, zip,
+          value(row, 'hospital_type', 'Hospital Type') || null,
+          value(row, 'telephone_number', 'Telephone Number') || null,
+          value(row, 'countyparish', 'County/Parish') || null,
+        ];
+        // Attach the CMS identifier to an existing matching seeded/manual record first,
+        // preserving its known coordinates and preventing duplicate facility cards.
+        const matched = await pool.query(
+          `UPDATE healthcare_facilities SET
+             cms_ccn = $1, name = $2, address_line1 = $3, city = $4, state = $5, postal_code = $6,
+             facility_type = $7, phone = $8, county = $9,
+             data_source = 'CMS_HOSPITAL_GENERAL_INFORMATION', last_seen_at = NOW(),
+             is_active = TRUE, updated_at = NOW()
+           WHERE cms_ccn = $1
+              OR (cms_ccn IS NULL AND LOWER(name) = LOWER($2) AND UPPER(state) = $5 AND postal_code = $6)`,
+          values
         );
-        if (result.rows[0]?.was_inserted) inserted += 1;
-        else updated += 1;
+        if (matched.rowCount) {
+          updated += 1;
+        } else {
+          await pool.query(
+            `INSERT INTO healthcare_facilities
+              (id, name, address_line1, city, state, postal_code, cms_ccn, facility_type, phone, county,
+               data_source, last_seen_at, data_quality_status, is_active)
+             VALUES
+              ('cms_' || $1, $2, $3, $4, $5, $6, $1, $7, $8, $9,
+               'CMS_HOSPITAL_GENERAL_INFORMATION', NOW(), 'needs_geocoding', TRUE)
+             ON CONFLICT (cms_ccn) DO UPDATE SET
+               name = EXCLUDED.name, address_line1 = EXCLUDED.address_line1,
+               city = EXCLUDED.city, state = EXCLUDED.state, postal_code = EXCLUDED.postal_code,
+               facility_type = EXCLUDED.facility_type, phone = EXCLUDED.phone, county = EXCLUDED.county,
+               data_source = EXCLUDED.data_source, last_seen_at = NOW(), is_active = TRUE, updated_at = NOW()`,
+            values
+          );
+          inserted += 1;
+        }
       }
 
       console.log(`CMS import: processed ${seen} records...`);
