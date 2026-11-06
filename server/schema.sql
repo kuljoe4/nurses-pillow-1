@@ -190,7 +190,7 @@ CREATE TABLE healthcare_directory_imports (
 
 CREATE TABLE healthcare_facility_reports (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    reporter_user_id VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL,
+    reporter_user_id VARCHAR(255),
     facility_name VARCHAR(255) NOT NULL,
     address TEXT NOT NULL,
     city VARCHAR(100) NOT NULL,
