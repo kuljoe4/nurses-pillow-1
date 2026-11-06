@@ -17,6 +17,7 @@ async function main() {
      FROM healthcare_facilities
      WHERE data_source = 'CMS_HOSPITAL_GENERAL_INFORMATION'
        AND (latitude IS NULL OR longitude IS NULL)
+       AND COALESCE(data_quality_status, 'needs_geocoding') = 'needs_geocoding'
      ORDER BY state, city, name
      LIMIT $1`,
     [limit]
@@ -41,6 +42,11 @@ async function main() {
         const longitude = Number(match?.coordinates?.x);
         const latitude = Number(match?.coordinates?.y);
         if (!match || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+          await pool.query(
+            `UPDATE healthcare_facilities SET data_quality_status = 'geocode_no_match', updated_at = NOW()
+             WHERE cms_ccn = $1`,
+            [facility.cms_ccn]
+          );
           skipped += 1;
           continue;
         }
@@ -53,6 +59,11 @@ async function main() {
         );
         geocoded += 1;
       } catch (error) {
+        await pool.query(
+          `UPDATE healthcare_facilities SET data_quality_status = 'geocode_error', updated_at = NOW()
+           WHERE cms_ccn = $1`,
+          [facility.cms_ccn]
+        );
         failed += 1;
         console.error(`Could not geocode ${facility.cms_ccn}:`, error);
       }
