@@ -79,7 +79,9 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
   const [isSearching, setIsSearching] = useState(false);
   const [nearbyDistances, setNearbyDistances] = useState<{ hospital: string; distanceMiles: number; driveMins: number; id: string }[]>([]);
   const [nearbyLoading, setNearbyLoading] = useState(false);
-  const [placeId, setPlaceId] = useState<string | null>(initialLocation?.placeId || null);
+  const [discoveryRadius, setDiscoveryRadius] = useState(20);
+  const [directoryTerritoryActive, setDirectoryTerritoryActive] = useState<boolean | null>(null);
+  const [placeId, setPlaceId = useState<string | null>(initialLocation?.placeId || null);
 
   useEffect(() => {
     if (!initialLocation) return;
@@ -212,23 +214,46 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
   useEffect(() => {
     if (!isConfirmed || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lng)) return;
     const controller = new AbortController();
-    setNearbyLoading(true);
-    const params = new URLSearchParams({ lat: String(coords.lat), lng: String(coords.lng), radiusMiles: "20" });
-    fetch("/api/hospitals/nearby?" + params.toString(), { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Nearby hospital lookup failed");
-        return response.json();
-      })
-      .then((rows) => setNearbyDistances(Array.isArray(rows) ? rows.map((hospital: any) => ({
-        id: hospital.id,
-        hospital: hospital.name,
-        distanceMiles: Number(hospital.distance_miles),
-        driveMins: hospital.estimated_drive_minutes == null ? 0 : Number(hospital.estimated_drive_minutes),
-      })) : []))
-      .catch((error) => { if (error.name !== "AbortError") setNearbyDistances([]); })
-      .finally(() => setNearbyLoading(false));
+    const loadNearby = async () => {
+      setNearbyLoading(true);
+      setNearbyDistances([]);
+      setDiscoveryRadius(20);
+      try {
+        const base = new URLSearchParams({ lat: String(coords.lat), lng: String(coords.lng), state: currentState });
+        const request = async (radius: number) => {
+          const response = await fetch("/api/hospitals/nearby?" + new URLSearchParams({ ...Object.fromEntries(base), radiusMiles: String(radius) }), { signal: controller.signal });
+          if (!response.ok) throw new Error("Nearby hospital lookup failed");
+          return response.json();
+        };
+        let result = await request(20);
+        if (controller.signal.aborted) return;
+        let hospitals = Array.isArray(result?.hospitals) ? result.hospitals : [];
+        setDirectoryTerritoryActive(result?.territory_active === true);
+        if (hospitals.length === 0) {
+          result = await request(50);
+          if (controller.signal.aborted) return;
+          hospitals = Array.isArray(result?.hospitals) ? result.hospitals : [];
+          setDiscoveryRadius(50);
+          setDirectoryTerritoryActive(result?.territory_active === true);
+        }
+        setNearbyDistances(hospitals.map((hospital: any) => ({
+          id: hospital.id,
+          hospital: hospital.name,
+          distanceMiles: Number(hospital.distance_miles),
+          driveMins: hospital.estimated_drive_minutes == null ? 0 : Number(hospital.estimated_drive_minutes),
+        })));
+      } catch (error: any) {
+        if (error.name !== "AbortError") {
+          console.error("Hospital discovery failed:", error);
+          setNearbyDistances([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) setNearbyLoading(false);
+      }
+    };
+    loadNearby();
     return () => controller.abort();
-  }, [isConfirmed, coords.lat, coords.lng]);
+  }, [isConfirmed, coords.lat, coords.lng, currentState]);
 
   const handleConfirm = () => {
     if (!hasSelectedLocation || !cityState || !addressInput.trim()) return;
@@ -386,9 +411,14 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
         ) : nearbyLoading ? (
           <p className="text-xs text-gray-500">Finding verified hospitals within 20 miles…</p>
         ) : nearbyDistances.length === 0 ? (
-          <p className="text-xs text-gray-500">No verified hospitals were found within 20 miles. Your property address is saved independently of hospital availability.</p>
+          <div className="space-y-2">
+            <p className="text-xs text-gray-600 dark:text-gray-300">No geocoded hospitals were found within 50 miles of this address. This does not mean there are no hospitals nearby; some directory records may still need coordinates or verification.</p>
+            <p className="text-[11px] text-gray-500">You can continue with the property address. Hospital proximity will remain unavailable until facility data is verified.</p>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div className="space-y-2.5">
+            <p className="text-[11px] text-gray-500">Showing the closest facilities within {discoveryRadius} miles. Distances are straight-line estimates, not driving distances.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {nearbyDistances.map((item) => (
               <div key={item.id} className="p-2.5 rounded-xl bg-white dark:bg-[#111e33] border border-[rgba(11,37,89,0.08)] dark:border-[#233550] flex flex-col justify-between">
                 <div className="text-[11px] font-semibold text-[#001848] dark:text-white">{item.hospital}</div>
@@ -398,6 +428,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
                 </div>
               </div>
             ))}
+            </div>
           </div>
         )}
       </div>
