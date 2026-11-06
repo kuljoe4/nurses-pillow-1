@@ -146,9 +146,19 @@ CREATE TABLE healthcare_facilities (
     city VARCHAR(100) NOT NULL,
     state VARCHAR(2) NOT NULL DEFAULT 'NC', -- North Carolina gated
     postal_code VARCHAR(20) NOT NULL,
-    latitude DECIMAL(10, 8) NOT NULL,
-    longitude DECIMAL(11, 8) NOT NULL,
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
     place_id VARCHAR(255) UNIQUE, -- Google Maps Places Autocomplete ID
+    cms_ccn VARCHAR(20) UNIQUE,
+    npi VARCHAR(20),
+    facility_type VARCHAR(120),
+    phone VARCHAR(40),
+    county VARCHAR(100),
+    data_source VARCHAR(80) DEFAULT 'manual',
+    source_updated_at TIMESTAMPTZ,
+    last_seen_at TIMESTAMPTZ,
+    last_verified_at TIMESTAMPTZ,
+    data_quality_status VARCHAR(30) DEFAULT 'needs_geocoding',
     is_active BOOLEAN DEFAULT TRUE,
     trauma_level VARCHAR(100),
     teaching_hospital BOOLEAN DEFAULT FALSE,
@@ -160,6 +170,39 @@ CREATE TABLE healthcare_facilities (
 
 CREATE INDEX idx_facilities_coords ON healthcare_facilities(latitude, longitude);
 CREATE INDEX idx_facilities_city_state ON healthcare_facilities(city, state);
+CREATE INDEX idx_healthcare_facilities_state_type ON healthcare_facilities(state, facility_type);
+CREATE INDEX idx_healthcare_facilities_coords_active ON healthcare_facilities(latitude, longitude)
+  WHERE is_active = TRUE AND latitude IS NOT NULL AND longitude IS NOT NULL;
+
+CREATE TABLE healthcare_directory_imports (
+    id BIGSERIAL PRIMARY KEY,
+    source VARCHAR(80) NOT NULL,
+    source_release_date DATE,
+    records_seen INTEGER NOT NULL DEFAULT 0,
+    records_inserted INTEGER NOT NULL DEFAULT 0,
+    records_updated INTEGER NOT NULL DEFAULT 0,
+    records_rejected INTEGER NOT NULL DEFAULT 0,
+    status VARCHAR(20) NOT NULL DEFAULT 'running',
+    started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at TIMESTAMPTZ,
+    error_message TEXT
+);
+
+CREATE TABLE healthcare_facility_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reporter_user_id VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL,
+    facility_name VARCHAR(255) NOT NULL,
+    address TEXT NOT NULL,
+    city VARCHAR(100) NOT NULL,
+    state VARCHAR(2) NOT NULL,
+    postal_code VARCHAR(20),
+    latitude DECIMAL(10,8),
+    longitude DECIMAL(11,8),
+    notes TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 
 -- ============================================================================
 -- 3. CORE USERS & ORGANIZATIONS
