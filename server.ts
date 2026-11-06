@@ -3638,6 +3638,18 @@ async function startServer() {
           listingId = newListingRes.rows[0].id;
         }
 
+        // Refresh the complete nearby-hospital cache whenever the property moves.
+        await db.query("DELETE FROM listing_hospital_distances WHERE listing_id = $1", [listingId]);
+        for (const hospital of nearbyHospitalsRes.rows) {
+          await db.query(
+            `INSERT INTO listing_hospital_distances (listing_id, facility_id, distance_miles)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (listing_id, facility_id)
+             DO UPDATE SET distance_miles = EXCLUDED.distance_miles, calculated_at = NOW()`,
+            [listingId, hospital.id, Number(hospital.distance_miles)]
+          );
+        }
+
         // Sync room configurations
         if (req.body.propertyType === 'individual_rooms' && req.body.roomCount) {
           // Delete old rooms for idempotency
