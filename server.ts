@@ -1841,6 +1841,56 @@ async function startServer() {
     }
   });
 
+  // Allow hosts to flag a missing or incorrectly listed healthcare facility for admin review.
+  app.post('/api/hospitals/missing-report', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const facilityName = String(req.body.facilityName || '').trim();
+      const address = String(req.body.address || '').trim();
+      const city = String(req.body.city || '').trim();
+      const state = String(req.body.state || '').trim().toUpperCase();
+      const postalCode = String(req.body.postalCode || '').trim();
+      const notes = String(req.body.notes || '').trim();
+      if (facilityName.length < 2 || address.length < 5 || city.length < 2 || !/^[A-Z]{2}$/.test(state)) {
+        return res.status(400).json({ error: 'Facility name, street address, city and valid state are required.' });
+      }
+      const saved = await db.query(
+        `INSERT INTO healthcare_facility_reports
+          (reporter_user_id, facility_name, address, city, state, postal_code, notes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, status, created_at`,
+        [req.user?.id || null, facilityName, address, city, state, postalCode || null, notes || null]
+      );
+      res.status(201).json({ message: 'Facility report submitted for review.', report: saved.rows[0] });
+    } catch (error: any) {
+      console.error('Missing facility report failed:', error.message);
+      res.status(503).json({ error: 'Unable to submit facility report right now.' });
+    }
+  });
+
+  // Admin visibility into national directory coverage and data quality.
+  app.get('/api/admin/healthcare-directory/summary', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });
+    try {
+      const [totals, states, imports, reports] = await Promise.all([
+        db.query(`SELECT COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE latitude IS NOT NULL AND longitude IS NOT NULL)::int AS geocoded,
+          COUNT(*) FILTER (WHERE latitude IS NULL OR longitude IS NULL)::int AS needs_geocoding,
+          COUNT(*) FILTER (WHERE data_source = 'CMS_HOSPITAL_GENERAL_INFORMATION')::int AS cms_records
+          FROM healthcare_facilities WHERE COALESCE(is_active, true) = true`),
+        db.query(`SELECT state, COUNT(*)::int AS facilities,
+          COUNT(*) FILTER (WHERE latitude IS NOT NULL AND longitude IS NOT NULL)::int AS geocoded
+          FROM healthcare_facilities WHERE COALESCE(is_active, true) = true
+          GROUP BY state ORDER BY state`),
+        db.query(`SELECT * FROM healthcare_directory_imports ORDER BY started_at DESC LIMIT 5`),
+        db.query(`SELECT COUNT(*) FILTER (WHERE status = 'pending')::int AS pending
+          FROM healthcare_facility_reports`)
+      ]);
+      res.json({ totals: totals.rows[0], states: states.rows, recentImports: imports.rows, pendingFacilityReports: reports.rows[0]?.pending || 0 });
+    } catch (error: any) {
+      console.error('Healthcare directory summary failed:', error.message);
+      res.status(503).json({ error: 'Healthcare directory summary unavailable.' });
+    }
+  });
+
   // Housing Listings
   app.get('/api/listings', async (req: Request, res: Response) => {
     try {
