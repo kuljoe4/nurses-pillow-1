@@ -79,6 +79,16 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [placeId, setPlaceId] = useState<string | null>(initialLocation?.placeId || null);
 
+  useEffect(() => {
+    if (!initialLocation) return;
+    setAddressInput(initialLocation.formattedAddress);
+    setCoords({ lat: initialLocation.lat, lng: initialLocation.lng });
+    setCityState([initialLocation.city, initialLocation.state, initialLocation.zipCode].filter(Boolean).join(", "));
+    setPlaceId(initialLocation.placeId || null);
+    setHasSelectedLocation(true);
+    setIsConfirmed(true);
+  }, [initialLocation?.formattedAddress, initialLocation?.lat, initialLocation?.lng, initialLocation?.city, initialLocation?.state, initialLocation?.zipCode, initialLocation?.placeId]);
+
   // Modern Places Library (Places API (New))
   const placesLibrary = useMapsLibrary("places");
   const sessionTokenRef =
