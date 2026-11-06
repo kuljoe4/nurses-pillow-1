@@ -2,9 +2,7 @@ import 'dotenv/config';
 import pg from 'pg';
 
 const { Pool } = pg;
-const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY;
 if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required.');
-if (!apiKey) throw new Error('GOOGLE_MAPS_API_KEY is required for Places geocoding.');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -32,40 +30,33 @@ async function main() {
       const query = [facility.name, facility.address_line1, facility.city, facility.state, facility.postal_code, 'USA']
         .filter(Boolean).join(', ');
       try {
-        const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Goog-Api-Key': apiKey,
-            'X-Goog-FieldMask': 'places.id,places.displayName,places.location,places.formattedAddress',
-          },
-          body: JSON.stringify({ textQuery: query, maxResultCount: 3 }),
-        });
-        if (!response.ok) throw new Error(`Google Places returned HTTP ${response.status}`);
+        const url = new URL('https://geocoding.geo.census.gov/geocoder/locations/onelineaddress');
+        url.searchParams.set('address', query);
+        url.searchParams.set('benchmark', 'Public_AR_Current');
+        url.searchParams.set('format', 'json');
+        const response = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!response.ok) throw new Error(`US Census Geocoder returned HTTP ${response.status}`);
         const payload: any = await response.json();
-        const candidates = Array.isArray(payload.places) ? payload.places : [];
-        const expected = String(facility.name).toLowerCase().replace(/[^a-z0-9]/g, '');
-        const match = candidates.find((place: any) => {
-          const actual = String(place.displayName?.text || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-          return actual && (actual.includes(expected) || expected.includes(actual));
-        });
-        if (!match?.location || !match.id) {
+        const match = payload.result?.addressMatches?.[0];
+        const longitude = Number(match?.coordinates?.x);
+        const latitude = Number(match?.coordinates?.y);
+        if (!match || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
           skipped += 1;
           continue;
         }
         await pool.query(
           `UPDATE healthcare_facilities
-           SET latitude = $2, longitude = $3, place_id = $4,
+           SET latitude = $2, longitude = $3,
                data_quality_status = 'geocoded', last_verified_at = NOW(), updated_at = NOW()
            WHERE cms_ccn = $1`,
-          [facility.cms_ccn, match.location.latitude, match.location.longitude, match.id]
+          [facility.cms_ccn, latitude, longitude]
         );
         geocoded += 1;
       } catch (error) {
         failed += 1;
         console.error(`Could not geocode ${facility.cms_ccn}:`, error);
       }
-      await sleep(250);
+      await sleep(350);
     }
     console.log(JSON.stringify({ examined: rows.rowCount, geocoded, skipped, failed }, null, 2));
   } finally {
