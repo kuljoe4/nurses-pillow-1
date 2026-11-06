@@ -19,52 +19,40 @@ export const SystemStatusView: React.FC<SystemStatusViewProps> = ({
 
   const services = [
     {
-      name: 'Nursys & State Nursing Board Primary Source Registry',
-      category: 'Clinical Credentialing',
+      name: 'Professional Credential Verification',
+      category: 'Professional Verification',
       status: 'Operational',
-      latency: '18ms',
-      uptime: '99.99%',
-      description: 'Primary source license validation and multi-state compact checks',
+      description: 'Review of professional credentials and license information',
     },
     {
-      name: 'Stripe Connect Escrow & Payout Engine',
-      category: 'Financial Infrastructure',
+      name: 'Secure Payments & Host Payouts',
+      category: 'Payments',
       status: 'Operational',
-      latency: '24ms',
-      uptime: '100.00%',
-      description: 'Automated deposit authorizations, host payouts, and refund processing',
+      description: 'Booking payments, host payouts, and refunds',
     },
     {
-      name: 'Hospital Transit & Geocoding Matrix',
-      category: 'Spatial Intelligence',
+      name: 'Hospital & Location Services',
+      category: 'Location Services',
       status: 'Operational',
-      latency: '31ms',
-      uptime: '99.96%',
-      description: 'Drive time, walking distance, and shuttle lines to NC medical centers',
+      description: 'Hospital locations and distance information',
     },
     {
-      name: 'Twilio SMS & Postmark Notification Gateway',
-      category: 'Messaging & 2FA',
+      name: 'Messages & Notifications',
+      category: 'Notifications',
       status: 'Operational',
-      latency: '42ms',
-      uptime: '99.98%',
-      description: '2FA phone verification codes and booking dispatch communications',
+      description: 'Account verification and booking updates',
     },
     {
-      name: 'Google Cloud Storage & Encrypted Vault',
-      category: 'Object Storage & Clinician Privacy',
+      name: 'Secure Document & Photo Storage',
+      category: 'Secure Storage',
       status: 'Operational',
-      latency: '22ms',
-      uptime: '99.99%',
-      description: 'Public sanctuary listing photos and encrypted verification document vaulting',
+      description: 'Property photos and protected verification information',
     },
     {
-      name: 'Cloud Run Multi-Region Container Fleet',
-      category: 'Core Platform Hosting',
+      name: 'Platform Availability',
+      category: 'Platform Services',
       status: 'Operational',
-      latency: '12ms',
-      uptime: '99.98%',
-      description: 'Load-balanced container nodes in us-east4 and europe-west2',
+      description: 'Core services that support the Nurses Pillow platform',
     },
   ];
 
@@ -186,24 +174,13 @@ export const SystemStatusView: React.FC<SystemStatusViewProps> = ({
               <div>
                 <div className="text-lg font-bold">All Core Systems Operational</div>
                 <div className="text-xs opacity-75 mt-0.5">
-                  Last verified: 3 minutes ago • Telemetry healthy across North Carolina clusters
+                  Service information and availability updates
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-6 border-t md:border-t-0 md:border-l border-black/5 dark:border-white/10 pt-4 md:pt-0 md:pl-8 text-xs">
-              <div>
-                <div className="opacity-70">30-Day Uptime</div>
-                <div className="text-base font-extrabold text-[#195b4c] dark:text-[#aff0db]">99.98%</div>
-              </div>
-              <div>
-                <div className="opacity-70">Global Latency</div>
-                <div className="text-base font-extrabold text-[#005684] dark:text-[#93ccff]">24ms</div>
-              </div>
-              <div>
-                <div className="opacity-70">Incident Status</div>
-                <div className="text-base font-extrabold text-emerald-600 dark:text-emerald-400">Zero Active</div>
-              </div>
+            <div className="border-t md:border-t-0 md:border-l border-black/5 dark:border-white/10 pt-4 md:pt-0 md:pl-8 text-xs opacity-75">
+              Service availability can change. Contact support if you are experiencing a problem.
             </div>
           </div>
 
@@ -216,7 +193,7 @@ export const SystemStatusView: React.FC<SystemStatusViewProps> = ({
             }`}
           >
             <div className="p-6 border-b border-black/5 dark:border-white/10">
-              <h2 className="text-base font-bold">Clinical Infrastructure Services</h2>
+              <h2 className="text-base font-bold">Platform Services</h2>
             </div>
             <div className="divide-y divide-black/5 dark:divide-white/5">
               {services.map((svc, idx) => (
@@ -237,18 +214,7 @@ export const SystemStatusView: React.FC<SystemStatusViewProps> = ({
                   </div>
 
                   <div className="flex items-center gap-6 shrink-0 text-xs">
-                    <div className="text-right hidden sm:block">
-                      <div className="font-mono font-bold text-[#005684] dark:text-[#93ccff]">
-                        {svc.latency}
-                      </div>
-                      <div className="text-[10px] opacity-60">Avg Response</div>
-                    </div>
-                    <div className="text-right hidden sm:block">
-                      <div className="font-mono font-bold text-[#195b4c] dark:text-[#aff0db]">
-                        {svc.uptime}
-                      </div>
-                      <div className="text-[10px] opacity-60">Uptime SLA</div>
-                    </div>
+                    
                     <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                       <span>{svc.status}</span>
@@ -270,10 +236,10 @@ export const SystemStatusView: React.FC<SystemStatusViewProps> = ({
             <div className="space-y-1">
               <div className="text-sm font-bold flex items-center gap-2 text-[#745b0d] dark:text-[#ffdf91]">
                 <span className="material-symbols-outlined text-[18px]">engineering</span>
-                <span>Scheduled Zero-Downtime Maintenance Window</span>
+                <span>Maintenance updates</span>
               </div>
               <p className="text-xs opacity-80 max-w-xl">
-                System upgrades and state nursing board synchronization routines are scheduled for Sundays between 02:00 AM and 03:00 AM EST. Active digital door codes and confirmed bookings remain unaffected.
+                If maintenance is planned, we will share the timing and any expected service impact here in advance.
               </p>
             </div>
             <button
@@ -281,7 +247,7 @@ export const SystemStatusView: React.FC<SystemStatusViewProps> = ({
               onClick={onOpenSupport}
               className="px-4 py-2 rounded-xl bg-[#001848] dark:bg-[#005684] text-white text-xs font-bold hover:bg-[#162e62] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#162e62] transition-all duration-200 ease-in-out shrink-0 cursor-pointer"
             >
-              Contact 24/7 Clinical Support
+              Contact support
             </button>
           </div>
         </div>
@@ -326,16 +292,16 @@ export const SystemStatusView: React.FC<SystemStatusViewProps> = ({
             <span className="material-symbols-outlined text-[42px]">emergency</span>
           </div>
           <div className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">
-            Clinical System Disruption
+            Service interruption
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight">
-            Temporary System Fault — Incident Logged
+            We could not load this page
           </h1>
           <p className="text-sm opacity-80 max-w-md mx-auto leading-relaxed">
-            An unexpected error occurred while communicating with the hospital database. Our technical team has been paged with diagnostic telemetry.
+            We are having trouble loading this information. Please try again. If the problem continues, contact support.
           </p>
           <div className="inline-block px-3 py-1.5 rounded-lg bg-black/5 dark:bg-white/5 font-mono text-xs opacity-70">
-            Trace Active • Zero Booking Impact
+            
           </div>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <button
