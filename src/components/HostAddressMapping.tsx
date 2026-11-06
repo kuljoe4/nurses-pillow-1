@@ -60,6 +60,9 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
   >([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [nearbyDistances, setNearbyDistances] = useState<{ hospital: string; distanceMiles: number; driveMins: number; id: string }[]>([]);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
+  const [placeId, setPlaceId] = useState<string | null>(null);
 
   // Modern Places Library (Places API (New))
   const placesLibrary = useMapsLibrary("places");
@@ -156,7 +159,12 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
           if (c.types.includes("administrative_area_level_1"))
             state = c.shortText || state;
           if (c.types.includes("postal_code")) zip = c.shortText || zip;
+          if (!city && c.types.includes("sublocality_level_1")) city = c.longText || city;
+          if (!city && c.types.includes("administrative_area_level_2")) city = c.longText || city;
         });
+      }
+      if (!city || !state || !zip) {
+        throw new Error("Select a complete US street address with city, state, and ZIP code.");
       }
       setCityState([city, state, zip].filter(Boolean).join(", "));
       setAddressInput(place.formattedAddress || formattedAddress);
@@ -364,7 +372,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
       </div>
 
       {/* Pre-Launch Expansion Banner or Active State Confirmation */}
-      {!isValidState ? (
+      {currentState && !isValidState ? (
         <div className="mt-4 p-4 rounded-xl bg-[#FBF0D6] dark:bg-[#2a2010] border border-[#B9822E]/30 text-[#8c5d14] dark:text-[#f8d489] text-xs flex items-start gap-3 shadow-xs">
           <span className="material-symbols-outlined text-[20px] text-[#B9822E] shrink-0 mt-0.5">
             hourglass_top
@@ -395,7 +403,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
                 ? `Address locked! Listing will save to ${getStateName(currentState)} Expansion Waitlist.`
                 : "Address and hospital distance tags locked for listing."}
             </span>
-          ) : !isValidState ? (
+          ) : currentState && !isValidState ? (
             <span className="text-[#B9822E] dark:text-[#f8d489] text-[11px] font-medium">
               Confirm location to reserve your priority launch spot in {getStateName(currentState)}.
             </span>
