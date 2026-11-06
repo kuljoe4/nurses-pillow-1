@@ -24,7 +24,9 @@ interface HostAddressMappingProps {
       hospital: string;
       distanceMiles: number;
       driveMins: number;
+      id: string;
     }[];
+    placeId?: string | null;
   }) => void;
 }
 
