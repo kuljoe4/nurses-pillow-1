@@ -1782,8 +1782,6 @@ async function startServer() {
         SELECT h.id, h.name, h.health_system, h.address_line1 as address, h.city, h.state, h.postal_code as zip,
           h.latitude, h.longitude, h.trauma_level, h.teaching_hospital, h.parking_type, h.nurse_feedback_score
         FROM healthcare_facilities h
-        INNER JOIN active_territories t
-          ON UPPER(t.state_code) = UPPER(h.state) AND t.is_active = true
         WHERE COALESCE(h.is_active, true) = true
         ORDER BY h.state, h.city, h.name
       `);
@@ -1814,9 +1812,8 @@ async function startServer() {
             SIN(RADIANS($1)) * SIN(RADIANS(h.latitude::double precision))
           ))))::numeric, 1) AS distance_miles
          FROM healthcare_facilities h
-         INNER JOIN active_territories t
-           ON UPPER(t.state_code) = UPPER(h.state) AND t.is_active = true
          WHERE COALESCE(h.is_active, true) = true
+           AND h.latitude IS NOT NULL AND h.longitude IS NOT NULL
            AND 3958.8 * ACOS(LEAST(1, GREATEST(-1,
              COS(RADIANS($1)) * COS(RADIANS(h.latitude::double precision)) *
              COS(RADIANS(h.longitude::double precision) - RADIANS($2)) +
@@ -1827,7 +1824,17 @@ async function startServer() {
         [lat, lng, radiusMiles]
       );
 
-      res.json(result.rows);
+      const stateCode = typeof req.query.state === 'string' ? req.query.state.toUpperCase() : null;
+      const territory = stateCode
+        ? await db.query('SELECT is_active FROM active_territories WHERE UPPER(state_code) = $1 LIMIT 1', [stateCode])
+        : null;
+      res.json({
+        hospitals: result.rows,
+        radius_miles: radiusMiles,
+        territory_active: territory?.rows?.[0]?.is_active === true,
+        territory_known: Boolean(territory?.rows?.length),
+        data_scope: 'national_directory',
+      });
     } catch (error: any) {
       console.error('Error finding nearby hospitals:', error.message);
       res.status(503).json({ error: 'Nearby hospital lookup is temporarily unavailable.' });
