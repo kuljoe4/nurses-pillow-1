@@ -1793,6 +1793,46 @@ async function startServer() {
     }
   });
 
+  // Find verified directory hospitals near a confirmed property address.
+  app.get('/api/hospitals/nearby', async (req: Request, res: Response) => {
+    try {
+      const lat = Number(req.query.lat);
+      const lng = Number(req.query.lng);
+      const requestedRadius = Number(req.query.radiusMiles ?? 20);
+      const radiusMiles = Number.isFinite(requestedRadius) ? Math.min(Math.max(requestedRadius, 1), 50) : 20;
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+        return res.status(400).json({ error: 'Valid latitude and longitude are required.' });
+      }
+
+      const result = await db.query(
+        `SELECT h.id, h.name, h.health_system, h.city, h.state,
+          ROUND((3958.8 * ACOS(LEAST(1, GREATEST(-1,
+            COS(RADIANS($1)) * COS(RADIANS(h.latitude::double precision)) *
+            COS(RADIANS(h.longitude::double precision) - RADIANS($2)) +
+            SIN(RADIANS($1)) * SIN(RADIANS(h.latitude::double precision))
+          ))))::numeric, 1) AS distance_miles
+         FROM healthcare_facilities h
+         INNER JOIN active_territories t
+           ON UPPER(t.state_code) = UPPER(h.state) AND t.is_active = true
+         WHERE COALESCE(h.is_active, true) = true
+           AND 3958.8 * ACOS(LEAST(1, GREATEST(-1,
+             COS(RADIANS($1)) * COS(RADIANS(h.latitude::double precision)) *
+             COS(RADIANS(h.longitude::double precision) - RADIANS($2)) +
+             SIN(RADIANS($1)) * SIN(RADIANS(h.latitude::double precision))
+           ))) <= $3
+         ORDER BY distance_miles ASC, h.name ASC
+         LIMIT 10`,
+        [lat, lng, radiusMiles]
+      );
+
+      res.json(result.rows);
+    } catch (error: any) {
+      console.error('Error finding nearby hospitals:', error.message);
+      res.status(503).json({ error: 'Nearby hospital lookup is temporarily unavailable.' });
+    }
+  });
+
   // Housing Listings
   app.get('/api/listings', async (req: Request, res: Response) => {
     try {
