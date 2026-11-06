@@ -438,22 +438,14 @@ export const NurseDashboardView: React.FC<NurseDashboardViewProps> = ({
                         <span>{booking.durationWeeks} weeks</span>
                       </div>
 
-                      {/* Stripe Connect Direct Charge Pre-Auth Hold Indicator */}
+                      {/* Plain-language payment status; processor references stay internal. */}
                       <div className="p-3 rounded-xl bg-[#EFF6FB] dark:bg-[#0E1A2E] border border-[rgba(11,37,89,0.06)] dark:border-[#233550] mb-3.5 text-xs space-y-1.5">
                         <div className="flex items-center justify-between">
-                          <span className="text-gray-500">Stripe Payment Status:</span>
+                          <span className="text-gray-500">Payment status:</span>
                           <span className={`font-bold ${isApproved ? 'text-[#2F6E5E]' : isDeclined ? 'text-[#A8452E]' : 'text-[#0A6FA8]'}`}>
-                            {isApproved ? 'Captured • Direct Payout' : isDeclined ? 'Released • Uncharged' : 'Pre-Auth Hold Placed'}
+                            {isApproved ? 'Payment confirmed' : isDeclined ? 'Authorization released' : 'Awaiting host decision'}
                           </span>
                         </div>
-                        {booking.paymentIntentId && (
-                          <div className="flex items-center justify-between font-mono text-[11px]">
-                            <span className="text-gray-400">PaymentIntent:</span>
-                            <span className="text-gray-600 dark:text-gray-300 truncate max-w-[170px]" title={booking.paymentIntentId}>
-                              {booking.paymentIntentId}
-                            </span>
-                          </div>
-                        )}
                         <div className="flex items-center justify-between pt-1 border-t border-[rgba(11,37,89,0.06)] dark:border-[#233550]">
                           <span className="text-gray-500">Total Upfront Amount:</span>
                           <span className="font-bold tabular-nums text-[#0B2559] dark:text-white">
