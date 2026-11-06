@@ -160,57 +160,30 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
     }
   };
 
-  // State determination and nearby hospital distance calculations relative to state
-  const currentState = cityState.split(",")[1]?.trim().split(" ")[0]?.toUpperCase() || "NC";
+  // Nearby hospitals are discovered from the confirmed property coordinates.
+  const currentState = cityState.split(",")[1]?.trim().split(" ")[0]?.toUpperCase() || "";
   const isValidState = isStateActive(currentState, dynamicActiveStates);
 
-  const nearbyDistances = React.useMemo(() => {
-    switch (currentState) {
-      case 'FL':
-        return [
-          { hospital: "Orlando Health Regional Medical Center", distanceMiles: 1.1, driveMins: 4 },
-          { hospital: "AdventHealth Orlando", distanceMiles: 3.2, driveMins: 8 },
-          { hospital: "Tampa General Hospital", distanceMiles: 24.5, driveMins: 32 },
-        ];
-      case 'TX':
-        return [
-          { hospital: "Texas Medical Center (Houston)", distanceMiles: 1.2, driveMins: 4 },
-          { hospital: "Dell Seton Medical Center (Austin)", distanceMiles: 2.4, driveMins: 7 },
-          { hospital: "Baylor St. Luke's Medical Center", distanceMiles: 3.1, driveMins: 8 },
-        ];
-      case 'VA':
-        return [
-          { hospital: "VCU Medical Center (Richmond)", distanceMiles: 0.9, driveMins: 3 },
-          { hospital: "Inova Fairfax Hospital", distanceMiles: 7.8, driveMins: 13 },
-        ];
-      case 'MD':
-        return [
-          { hospital: "Johns Hopkins Hospital", distanceMiles: 0.8, driveMins: 3 },
-          { hospital: "University of Maryland Medical Center", distanceMiles: 2.1, driveMins: 6 },
-        ];
-      case 'CT':
-        return [
-          { hospital: "Yale New Haven Hospital", distanceMiles: 0.7, driveMins: 3 },
-          { hospital: "Hartford Hospital", distanceMiles: 18.5, driveMins: 22 },
-        ];
-      case 'ND':
-        return [
-          { hospital: "Sanford Medical Center Fargo", distanceMiles: 0.9, driveMins: 3 },
-          { hospital: "Essentia Health-Fargo", distanceMiles: 2.5, driveMins: 6 },
-        ];
-      case 'KS':
-        return [
-          { hospital: "University of Kansas Medical Center", distanceMiles: 1.2, driveMins: 4 },
-          { hospital: "Saint Luke's Hospital of Kansas City", distanceMiles: 3.1, driveMins: 7 },
-        ];
-      default:
-        return [
-          { hospital: "Duke University Hospital", distanceMiles: 0.8, driveMins: 3 },
-          { hospital: "UNC Medical Center", distanceMiles: 11.4, driveMins: 18 },
-          { hospital: "WakeMed Raleigh Campus", distanceMiles: 26.2, driveMins: 32 },
-        ];
-    }
-  }, [currentState]);
+  useEffect(() => {
+    if (!isConfirmed || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lng)) return;
+    const controller = new AbortController();
+    setNearbyLoading(true);
+    const params = new URLSearchParams({ lat: String(coords.lat), lng: String(coords.lng), radiusMiles: "20" });
+    fetch("/api/hospitals/nearby?" + params.toString(), { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Nearby hospital lookup failed");
+        return response.json();
+      })
+      .then((rows) => setNearbyDistances(Array.isArray(rows) ? rows.map((hospital: any) => ({
+        id: hospital.id,
+        hospital: hospital.name,
+        distanceMiles: Number(hospital.distance_miles),
+        driveMins: hospital.estimated_drive_minutes == null ? 0 : Number(hospital.estimated_drive_minutes),
+      })) : []))
+      .catch((error) => { if (error.name !== "AbortError") setNearbyDistances([]); })
+      .finally(() => setNearbyLoading(false));
+    return () => controller.abort();
+  }, [isConfirmed, coords.lat, coords.lng]);
 
   const handleConfirm = () => {
     setIsConfirmed(true);
@@ -223,6 +196,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
       zipCode: cityState.split(" ").pop() || "27705",
       isExpansionWaitlist: !isValidState,
       nearestHospitalDistances: nearbyDistances,
+      placeId,
     });
   };
 
@@ -313,62 +287,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
           </div>
         </div>
 
-        {/* Quick Demo Presets (Active & Expansion) */}
-        <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-[rgba(11,37,89,0.06)] dark:border-[#233550]">
-          <span className="text-[11px] font-semibold text-gray-400">
-            Sample Locations:
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              setAddressInput("208 S LaSalle St, Durham, NC 27705");
-              setCoords({ lat: 36.0098, lng: -78.9412 });
-              setCityState("Durham, NC 27705");
-            }}
-            className="text-[11px] font-bold text-[#005684] dark:text-[#93ccff] hover:underline cursor-pointer"
-          >
-            NC: Near Duke (0.8 mi)
-          </button>
-          <span className="text-gray-300">•</span>
-          <button
-            type="button"
-            onClick={() => {
-              setAddressInput("3012 New Bern Ave, Raleigh, NC 27610");
-              setCoords({ lat: 35.7898, lng: -78.5872 });
-              setCityState("Raleigh, NC 27610");
-            }}
-            className="text-[11px] font-bold text-[#005684] dark:text-[#93ccff] hover:underline cursor-pointer"
-          >
-            NC: Near WakeMed (0.4 mi)
-          </button>
-          <span className="text-gray-300">•</span>
-          <button
-            type="button"
-            onClick={() => {
-              setAddressInput("52 W Underwood St, Orlando, FL 32806");
-              setCoords({ lat: 28.5255, lng: -81.3788 });
-              setCityState("Orlando, FL 32806");
-            }}
-            className="text-[11px] font-bold text-[#B9822E] dark:text-[#f8d489] hover:underline cursor-pointer"
-          >
-            FL: Orlando Health (Waitlist Demo)
-          </button>
-          <span className="text-gray-300">•</span>
-          <button
-            type="button"
-            onClick={() => {
-              setAddressInput("6565 Fannin St, Houston, TX 77030");
-              setCoords({ lat: 29.7118, lng: -95.3986 });
-              setCityState("Houston, TX 77030");
-            }}
-            className="text-[11px] font-bold text-[#B9822E] dark:text-[#f8d489] hover:underline cursor-pointer"
-          >
-            TX: Medical Center (Waitlist Demo)
-          </button>
-        </div>
-      </div>
-
-      {/* Interactive Verification Map with Pulsating Animation and Radius Graphic */}
+        {/* Interactive Verification Map with Pulsating Animation and Radius Graphic */}
       <div className="h-72 w-full rounded-2xl overflow-hidden border border-[rgba(11,37,89,0.12)] dark:border-[#233550] shadow-sm relative">
         <Map
           mapId="bf51a910020fa25a"
@@ -419,36 +338,31 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
         </div>
       </div>
 
-      {/* Computed Hospital Commute Proximity Badges */}
+      {/* Nearby hospitals are derived from the confirmed property address. */}
       <div className="p-4 rounded-2xl bg-[#f2f3ff] dark:bg-[#182840] border border-[rgba(11,37,89,0.06)] dark:border-[#233550]">
         <div className="text-xs font-bold text-[#001848] dark:text-white mb-2.5 flex items-center gap-1.5">
-          <span className="material-symbols-outlined text-[16px] text-[#005684] dark:text-[#93ccff]">
-            route
-          </span>
-          <span>
-            Verified Hospital Distance Tags (Displayed on Traveler Search)
-          </span>
+          <span className="material-symbols-outlined text-[16px] text-[#005684] dark:text-[#93ccff]">route</span>
+          <span>Nearby hospitals (automatically detected)</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          {nearbyDistances.map((item) => (
-            <div
-              key={item.hospital}
-              className="p-2.5 rounded-xl bg-white dark:bg-[#111e33] border border-[rgba(11,37,89,0.08)] dark:border-[#233550] flex flex-col justify-between"
-            >
-              <div className="text-[11px] font-semibold text-[#001848] dark:text-white truncate">
-                {item.hospital}
+        {!isConfirmed ? (
+          <p className="text-xs text-gray-500">Select and confirm the property address to find hospitals nearby.</p>
+        ) : nearbyLoading ? (
+          <p className="text-xs text-gray-500">Finding verified hospitals within 20 miles…</p>
+        ) : nearbyDistances.length === 0 ? (
+          <p className="text-xs text-gray-500">No verified hospitals were found within 20 miles. Your property address is saved independently of hospital availability.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {nearbyDistances.map((item) => (
+              <div key={item.id} className="p-2.5 rounded-xl bg-white dark:bg-[#111e33] border border-[rgba(11,37,89,0.08)] dark:border-[#233550] flex flex-col justify-between">
+                <div className="text-[11px] font-semibold text-[#001848] dark:text-white">{item.hospital}</div>
+                <div className="flex items-center justify-between mt-1 pt-1 border-t border-gray-100 dark:border-[#233550]">
+                  <span className="text-[11px] font-bold text-[#195b4c] dark:text-[#aff0db]">{item.distanceMiles} mi</span>
+                  <span className="text-[10px] text-gray-500">{item.driveMins > 0 ? "~" + item.driveMins + " min estimated drive" : "Distance estimate"}</span>
+                </div>
               </div>
-              <div className="flex items-center justify-between mt-1 pt-1 border-t border-gray-100 dark:border-[#233550]">
-                <span className="text-[11px] font-bold text-[#195b4c] dark:text-[#aff0db] tabular-nums">
-                  📍 {item.distanceMiles} mi
-                </span>
-                <span className="text-[10px] text-gray-500">
-                  ~{item.driveMins} min drive
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Pre-Launch Expansion Banner or Active State Confirmation */}
