@@ -1422,6 +1422,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
                           zipCode: addressData.zipCode,
                           placeId: addressData.placeId,
                         } : undefined}
+                        onAddressInvalidated={() => setAddressData(null)}
                         onAddressConfirmed={(data) => setAddressData(data)}
                       />
                     </div>
