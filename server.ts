@@ -1838,7 +1838,10 @@ async function startServer() {
     try {
       const result = await db.query(`
         SELECT l.id, l.host_id, l.title, l.property_type, l.address_line1 as address, l.city, l.state, l.postal_code as zip,
-        l.latitude, l.longitude, l.nearest_hospital_id, l.monthly_rent as monthly_rate, l.security_deposit_amount as security_deposit,
+        l.latitude, l.longitude, l.nearest_hospital_id,
+        (SELECT h.name FROM healthcare_facilities h WHERE h.id = l.nearest_hospital_id) as nearest_hospital_name,
+        (SELECT d.distance_miles FROM listing_hospital_distances d WHERE d.listing_id = l.id AND d.facility_id = l.nearest_hospital_id LIMIT 1) as nearest_hospital_distance,
+        l.monthly_rent as monthly_rate, l.security_deposit_amount as security_deposit,
         l.cleaning_fee, l.pet_fee, l.parking_fee, l.extra_options, l.is_published as is_active, l.cancellation_policy as cancellation_tier,
         u.full_name as host_name, u.is_host_verified as host_verified,
         COALESCE(
@@ -2004,7 +2007,10 @@ async function startServer() {
 
       const listingsRes = await db.query(`
         SELECT l.id, l.host_id, l.title, l.property_type, l.address_line1 as address, l.city, l.state, l.postal_code as zip,
-        l.latitude, l.longitude, l.nearest_hospital_id, l.monthly_rent as monthly_rate, l.security_deposit_amount as security_deposit,
+        l.latitude, l.longitude, l.nearest_hospital_id,
+        (SELECT h.name FROM healthcare_facilities h WHERE h.id = l.nearest_hospital_id) as nearest_hospital_name,
+        (SELECT d.distance_miles FROM listing_hospital_distances d WHERE d.listing_id = l.id AND d.facility_id = l.nearest_hospital_id LIMIT 1) as nearest_hospital_distance,
+        l.monthly_rent as monthly_rate, l.security_deposit_amount as security_deposit,
         l.cleaning_fee, l.pet_fee, l.parking_fee, l.extra_options, l.is_published as is_active, l.cancellation_policy as cancellation_tier,
         u.full_name as host_name, u.is_host_verified as host_verified,
         COALESCE(
