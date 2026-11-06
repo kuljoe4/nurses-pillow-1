@@ -310,16 +310,6 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
           <PanToLocation coords={coords} />
           <AdvancedMarker position={coords} title="Your Listing Location">
             <div className="relative -translate-x-1/2 -translate-y-full cursor-pointer flex flex-col items-center">
-              {/* Commute Radius Graphic & Pulsating Animation */}
-              <div className="absolute top-[80%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none w-48 h-48 flex items-center justify-center -z-10">
-                {/* Outer pulsating ripple */}
-                <div className="absolute w-44 h-44 rounded-full bg-[#0A6FA8]/10 border border-[#0A6FA8]/30  opacity-75" />
-                {/* Intermediate radar ring */}
-                <div className="absolute w-32 h-32 rounded-full bg-[#0A6FA8]/15 border border-[#0A6FA8]/40" />
-                {/* Inner radius boundary disc */}
-                <div className="absolute w-20 h-20 rounded-full bg-[#0A6FA8]/20 border border-dashed border-[#0A6FA8]/60" />
-              </div>
-
               {/* Marker Pin */}
               <div className="relative z-10 px-3 py-1.5 rounded-full bg-[#001848] text-white text-xs font-bold shadow-lg ring-2 ring-white flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-[15px] text-amber-400">
@@ -338,7 +328,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
             <span className="absolute inline-flex h-full w-full rounded-full bg-[#0A6FA8] opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#0A6FA8]"></span>
           </span>
-          <span>1.0 mi Proximity Radius</span>
+          <span>20 mi Hospital Discovery Radius</span>
         </div>
 
         <div className="absolute top-2.5 left-2.5 bg-white/90 dark:bg-[#111e33]/90 backdrop-blur-md px-3 py-1 rounded-lg text-[11px] font-bold text-[#001848] dark:text-white shadow-xs">
