@@ -11,7 +11,17 @@ import { ACTIVE_STATES, isStateActive, getStateName } from "../lib/constants/sta
 interface HostAddressMappingProps {
   isNightShiftMode: boolean;
   initialAddress?: string;
+  initialLocation?: {
+    formattedAddress: string;
+    lat: number;
+    lng: number;
+    city: string;
+    state: string;
+    zipCode: string;
+    placeId?: string | null;
+  };
   dynamicActiveStates?: string[];
+  onAddressInvalidated?: () => void;
   onAddressConfirmed?: (addressData: {
     formattedAddress: string;
     lat: number;
@@ -24,7 +34,9 @@ interface HostAddressMappingProps {
       hospital: string;
       distanceMiles: number;
       driveMins: number;
+      id: string;
     }[];
+    placeId?: string | null;
   }) => void;
 }
 
@@ -44,23 +56,44 @@ const PanToLocation: React.FC<{ coords: { lat: number; lng: number } }> = ({
 
 export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
   isNightShiftMode,
-  initialAddress = "208 S LaSalle St, Durham, NC 27705",
+  initialAddress = "",
+  initialLocation,
   dynamicActiveStates,
+  onAddressInvalidated,
   onAddressConfirmed,
 }) => {
-  const [addressInput, setAddressInput] = useState(initialAddress);
-  const [unitApt, setUnitApt] = useState("Unit 3B");
-  const [coords, setCoords] = useState<{ lat: number; lng: number }>({
-    lat: 36.0098,
-    lng: -78.9412,
-  });
-  const [cityState, setCityState] = useState("Durham, NC 27705");
-  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [addressInput, setAddressInput] = useState(initialLocation?.formattedAddress || initialAddress);
+  const [unitApt, setUnitApt] = useState("");
+  const [coords, setCoords] = useState<{ lat: number; lng: number }>(
+    initialLocation ? { lat: initialLocation.lat, lng: initialLocation.lng } : { lat: 39.5, lng: -98.35 }
+  );
+  const [cityState, setCityState] = useState(
+    initialLocation ? [initialLocation.city, initialLocation.state, initialLocation.zipCode].filter(Boolean).join(", ") : ""
+  );
+  const [isConfirmed, setIsConfirmed] = useState(Boolean(initialLocation));
+  const [hasSelectedLocation, setHasSelectedLocation] = useState(Boolean(initialLocation));
   const [placesSuggestions, setPlacesSuggestions] = useState<
     google.maps.places.AutocompleteSuggestion[]
   >([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [nearbyDistances, setNearbyDistances] = useState<{ hospital: string; distanceMiles: number; driveMins: number; id: string }[]>([]);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
+  const [discoveryRadius, setDiscoveryRadius] = useState(20);
+  const [facilityReport, setFacilityReport] = useState({ name: "", address: "", city: "", state: "", postalCode: "", notes: "" });
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [placeId, setPlaceId] = useState<string | null>(initialLocation?.placeId || null);
+
+  useEffect(() => {
+    if (!initialLocation) return;
+    setAddressInput(initialLocation.formattedAddress);
+    setCoords({ lat: initialLocation.lat, lng: initialLocation.lng });
+    setCityState([initialLocation.city, initialLocation.state, initialLocation.zipCode].filter(Boolean).join(", "));
+    setPlaceId(initialLocation.placeId || null);
+    setHasSelectedLocation(true);
+    setIsConfirmed(true);
+  }, [initialLocation?.formattedAddress, initialLocation?.lat, initialLocation?.lng, initialLocation?.city, initialLocation?.state, initialLocation?.zipCode, initialLocation?.placeId]);
 
   // Modern Places Library (Places API (New))
   const placesLibrary = useMapsLibrary("places");
@@ -71,6 +104,11 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
   const handleInputChange = (text: string) => {
     setAddressInput(text);
     setIsConfirmed(false);
+    setPlaceId(null);
+    setHasSelectedLocation(false);
+    setCityState("");
+    setNearbyDistances([]);
+    onAddressInvalidated?.();
     setIsDropdownOpen(true);
 
     const trimmed = text.trim();
@@ -130,29 +168,40 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
       // Modern Places API (New) Place.fetchFields()
       const place = prediction.toPlace();
       await place.fetchFields({
-        fields: ["displayName","formattedAddress","location","addressComponents",
-        ],
+        fields: ["id", "displayName", "formattedAddress", "location", "addressComponents"],
       });
 
       if (place.location) {
         const lat = place.location.lat();
         const lng = place.location.lng();
         setCoords({ lat, lng });
+      } else {
+        throw new Error("The selected address did not include map coordinates.");
       }
+      setPlaceId(place.id || null);
+      setHasSelectedLocation(true);
+      setIsConfirmed(false);
+      setNearbyDistances([]);
 
-      let city ="Durham";
-      let state ="NC";
-      let zip ="27705";
+      let city = "";
+      let state = "";
+      let zip = "";
 
       if (place.addressComponents) {
         place.addressComponents.forEach((c) => {
-          if (c.types.includes("locality")) city = c.longText || city;
+          if (c.types.includes("locality") || (!city && c.types.includes("postal_town"))) city = c.longText || city;
           if (c.types.includes("administrative_area_level_1"))
             state = c.shortText || state;
           if (c.types.includes("postal_code")) zip = c.shortText || zip;
+          if (!city && c.types.includes("sublocality_level_1")) city = c.longText || city;
+          if (!city && c.types.includes("administrative_area_level_2")) city = c.longText || city;
         });
       }
-      setCityState(`${city}, ${state} ${zip}`);
+      if (!city || !state || !zip) {
+        throw new Error("Select a complete US street address with city, state, and ZIP code.");
+      }
+      setCityState([city, state, zip].filter(Boolean).join(", "));
+      setAddressInput(place.formattedAddress || formattedAddress);
     } catch (err) {
       console.warn("Place.fetchFields error:", err);
     } finally {
@@ -160,69 +209,92 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
     }
   };
 
-  // State determination and nearby hospital distance calculations relative to state
-  const currentState = cityState.split(",")[1]?.trim().split(" ")[0]?.toUpperCase() || "NC";
+  // Nearby hospitals are discovered from the confirmed property coordinates.
+  const currentState = cityState.split(",")[1]?.trim().split(" ")[0]?.toUpperCase() || "";
   const isValidState = isStateActive(currentState, dynamicActiveStates);
 
-  const nearbyDistances = React.useMemo(() => {
-    switch (currentState) {
-      case 'FL':
-        return [
-          { hospital: "Orlando Health Regional Medical Center", distanceMiles: 1.1, driveMins: 4 },
-          { hospital: "AdventHealth Orlando", distanceMiles: 3.2, driveMins: 8 },
-          { hospital: "Tampa General Hospital", distanceMiles: 24.5, driveMins: 32 },
-        ];
-      case 'TX':
-        return [
-          { hospital: "Texas Medical Center (Houston)", distanceMiles: 1.2, driveMins: 4 },
-          { hospital: "Dell Seton Medical Center (Austin)", distanceMiles: 2.4, driveMins: 7 },
-          { hospital: "Baylor St. Luke's Medical Center", distanceMiles: 3.1, driveMins: 8 },
-        ];
-      case 'VA':
-        return [
-          { hospital: "VCU Medical Center (Richmond)", distanceMiles: 0.9, driveMins: 3 },
-          { hospital: "Inova Fairfax Hospital", distanceMiles: 7.8, driveMins: 13 },
-        ];
-      case 'MD':
-        return [
-          { hospital: "Johns Hopkins Hospital", distanceMiles: 0.8, driveMins: 3 },
-          { hospital: "University of Maryland Medical Center", distanceMiles: 2.1, driveMins: 6 },
-        ];
-      case 'CT':
-        return [
-          { hospital: "Yale New Haven Hospital", distanceMiles: 0.7, driveMins: 3 },
-          { hospital: "Hartford Hospital", distanceMiles: 18.5, driveMins: 22 },
-        ];
-      case 'ND':
-        return [
-          { hospital: "Sanford Medical Center Fargo", distanceMiles: 0.9, driveMins: 3 },
-          { hospital: "Essentia Health-Fargo", distanceMiles: 2.5, driveMins: 6 },
-        ];
-      case 'KS':
-        return [
-          { hospital: "University of Kansas Medical Center", distanceMiles: 1.2, driveMins: 4 },
-          { hospital: "Saint Luke's Hospital of Kansas City", distanceMiles: 3.1, driveMins: 7 },
-        ];
-      default:
-        return [
-          { hospital: "Duke University Hospital", distanceMiles: 0.8, driveMins: 3 },
-          { hospital: "UNC Medical Center", distanceMiles: 11.4, driveMins: 18 },
-          { hospital: "WakeMed Raleigh Campus", distanceMiles: 26.2, driveMins: 32 },
-        ];
+  useEffect(() => {
+    if (!isConfirmed || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lng)) return;
+    const controller = new AbortController();
+    const loadNearby = async () => {
+      setNearbyLoading(true);
+      setNearbyDistances([]);
+      setDiscoveryRadius(20);
+      try {
+        const base = new URLSearchParams({ lat: String(coords.lat), lng: String(coords.lng), state: currentState });
+        const request = async (radius: number) => {
+          const response = await fetch("/api/hospitals/nearby?" + new URLSearchParams({ ...Object.fromEntries(base), radiusMiles: String(radius) }), { signal: controller.signal });
+          if (!response.ok) throw new Error("Nearby hospital lookup failed");
+          return response.json();
+        };
+        let result = await request(20);
+        if (controller.signal.aborted) return;
+        let hospitals = Array.isArray(result?.hospitals) ? result.hospitals : [];
+        if (hospitals.length === 0) {
+          result = await request(50);
+          if (controller.signal.aborted) return;
+          hospitals = Array.isArray(result?.hospitals) ? result.hospitals : [];
+          setDiscoveryRadius(50);
+        }
+        setNearbyDistances(hospitals.map((hospital: any) => ({
+          id: hospital.id,
+          hospital: hospital.name,
+          distanceMiles: Number(hospital.distance_miles),
+          driveMins: hospital.estimated_drive_minutes == null ? 0 : Number(hospital.estimated_drive_minutes),
+        })));
+      } catch (error: any) {
+        if (error.name !== "AbortError") {
+          console.error("Hospital discovery failed:", error);
+          setNearbyDistances([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) setNearbyLoading(false);
+      }
+    };
+    loadNearby();
+    return () => controller.abort();
+  }, [isConfirmed, coords.lat, coords.lng, currentState]);
+
+  const submitMissingFacilityReport = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setReportSubmitting(true);
+    try {
+      const response = await fetch("/api/hospitals/missing-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          facilityName: facilityReport.name,
+          address: facilityReport.address,
+          city: facilityReport.city,
+          state: facilityReport.state.toUpperCase(),
+          postalCode: facilityReport.postalCode,
+          notes: facilityReport.notes,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Unable to submit report.");
+      setReportSubmitted(true);
+    } catch (error: any) {
+      window.alert(error.message || "Unable to submit the facility report.");
+    } finally {
+      setReportSubmitting(false);
     }
-  }, [currentState]);
+  };
 
   const handleConfirm = () => {
+    if (!hasSelectedLocation || !cityState || !addressInput.trim()) return;
     setIsConfirmed(true);
     onAddressConfirmed?.({
       formattedAddress: `${addressInput} ${unitApt ? `(${unitApt})` : ""}`.trim(),
       lat: coords.lat,
       lng: coords.lng,
-      city: cityState.split(",")[0] || "Durham",
+      city: cityState.split(",")[0] || "",
       state: currentState,
-      zipCode: cityState.split(" ").pop() || "27705",
+      zipCode: cityState.split(",").pop()?.trim() || "",
       isExpansionWaitlist: !isValidState,
       nearestHospitalDistances: nearbyDistances,
+      placeId,
     });
   };
 
@@ -242,7 +314,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
             <span className="material-symbols-outlined text-[15px]">
               pin_drop
             </span>
-            <span>Location Verified</span>
+            <span>{isConfirmed ? "Address Confirmed" : "Awaiting Address"}</span>
           </span>
         </div>
 
@@ -313,62 +385,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
           </div>
         </div>
 
-        {/* Quick Demo Presets (Active & Expansion) */}
-        <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-[rgba(11,37,89,0.06)] dark:border-[#233550]">
-          <span className="text-[11px] font-semibold text-gray-400">
-            Sample Locations:
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              setAddressInput("208 S LaSalle St, Durham, NC 27705");
-              setCoords({ lat: 36.0098, lng: -78.9412 });
-              setCityState("Durham, NC 27705");
-            }}
-            className="text-[11px] font-bold text-[#005684] dark:text-[#93ccff] hover:underline cursor-pointer"
-          >
-            NC: Near Duke (0.8 mi)
-          </button>
-          <span className="text-gray-300">•</span>
-          <button
-            type="button"
-            onClick={() => {
-              setAddressInput("3012 New Bern Ave, Raleigh, NC 27610");
-              setCoords({ lat: 35.7898, lng: -78.5872 });
-              setCityState("Raleigh, NC 27610");
-            }}
-            className="text-[11px] font-bold text-[#005684] dark:text-[#93ccff] hover:underline cursor-pointer"
-          >
-            NC: Near WakeMed (0.4 mi)
-          </button>
-          <span className="text-gray-300">•</span>
-          <button
-            type="button"
-            onClick={() => {
-              setAddressInput("52 W Underwood St, Orlando, FL 32806");
-              setCoords({ lat: 28.5255, lng: -81.3788 });
-              setCityState("Orlando, FL 32806");
-            }}
-            className="text-[11px] font-bold text-[#B9822E] dark:text-[#f8d489] hover:underline cursor-pointer"
-          >
-            FL: Orlando Health (Waitlist Demo)
-          </button>
-          <span className="text-gray-300">•</span>
-          <button
-            type="button"
-            onClick={() => {
-              setAddressInput("6565 Fannin St, Houston, TX 77030");
-              setCoords({ lat: 29.7118, lng: -95.3986 });
-              setCityState("Houston, TX 77030");
-            }}
-            className="text-[11px] font-bold text-[#B9822E] dark:text-[#f8d489] hover:underline cursor-pointer"
-          >
-            TX: Medical Center (Waitlist Demo)
-          </button>
-        </div>
-      </div>
-
-      {/* Interactive Verification Map with Pulsating Animation and Radius Graphic */}
+        {/* Interactive Verification Map with Pulsating Animation and Radius Graphic */}
       <div className="h-72 w-full rounded-2xl overflow-hidden border border-[rgba(11,37,89,0.12)] dark:border-[#233550] shadow-sm relative">
         <Map
           mapId="bf51a910020fa25a"
@@ -383,16 +400,6 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
           <PanToLocation coords={coords} />
           <AdvancedMarker position={coords} title="Your Listing Location">
             <div className="relative -translate-x-1/2 -translate-y-full cursor-pointer flex flex-col items-center">
-              {/* Commute Radius Graphic & Pulsating Animation */}
-              <div className="absolute top-[80%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none w-48 h-48 flex items-center justify-center -z-10">
-                {/* Outer pulsating ripple */}
-                <div className="absolute w-44 h-44 rounded-full bg-[#0A6FA8]/10 border border-[#0A6FA8]/30  opacity-75" />
-                {/* Intermediate radar ring */}
-                <div className="absolute w-32 h-32 rounded-full bg-[#0A6FA8]/15 border border-[#0A6FA8]/40" />
-                {/* Inner radius boundary disc */}
-                <div className="absolute w-20 h-20 rounded-full bg-[#0A6FA8]/20 border border-dashed border-[#0A6FA8]/60" />
-              </div>
-
               {/* Marker Pin */}
               <div className="relative z-10 px-3 py-1.5 rounded-full bg-[#001848] text-white text-xs font-bold shadow-lg ring-2 ring-white flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-[15px] text-amber-400">
@@ -411,48 +418,66 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
             <span className="absolute inline-flex h-full w-full rounded-full bg-[#0A6FA8] opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#0A6FA8]"></span>
           </span>
-          <span>1.0 mi Proximity Radius</span>
+          <span>20 mi Hospital Discovery Radius</span>
         </div>
 
         <div className="absolute top-2.5 left-2.5 bg-white/90 dark:bg-[#111e33]/90 backdrop-blur-md px-3 py-1 rounded-lg text-[11px] font-bold text-[#001848] dark:text-white shadow-xs">
           📍 {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
         </div>
       </div>
+      </div>
 
-      {/* Computed Hospital Commute Proximity Badges */}
+      {/* Nearby hospitals are derived from the confirmed property address. */}
       <div className="p-4 rounded-2xl bg-[#f2f3ff] dark:bg-[#182840] border border-[rgba(11,37,89,0.06)] dark:border-[#233550]">
         <div className="text-xs font-bold text-[#001848] dark:text-white mb-2.5 flex items-center gap-1.5">
-          <span className="material-symbols-outlined text-[16px] text-[#005684] dark:text-[#93ccff]">
-            route
-          </span>
-          <span>
-            Verified Hospital Distance Tags (Displayed on Traveler Search)
-          </span>
+          <span className="material-symbols-outlined text-[16px] text-[#005684] dark:text-[#93ccff]">route</span>
+          <span>Nearby hospitals (automatically detected)</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          {nearbyDistances.map((item) => (
-            <div
-              key={item.hospital}
-              className="p-2.5 rounded-xl bg-white dark:bg-[#111e33] border border-[rgba(11,37,89,0.08)] dark:border-[#233550] flex flex-col justify-between"
-            >
-              <div className="text-[11px] font-semibold text-[#001848] dark:text-white truncate">
-                {item.hospital}
+        {!isConfirmed ? (
+          <p className="text-xs text-gray-500">Select and confirm the property address to find hospitals nearby.</p>
+        ) : nearbyLoading ? (
+          <p className="text-xs text-gray-500">Searching the nationwide hospital directory…</p>
+        ) : nearbyDistances.length === 0 ? (
+          <div className="space-y-2">
+            <p className="text-xs text-gray-600 dark:text-gray-300">No geocoded hospitals were found within 50 miles of this address. This does not mean there are no hospitals nearby; some directory records may still need coordinates or verification.</p>
+            <p className="text-[11px] text-gray-500">You can continue with the property address. Hospital proximity will remain unavailable until facility data is verified.</p>
+            <details className="rounded-xl border border-[#d8dfef] dark:border-[#33445f] bg-white/70 dark:bg-[#111e33]/70 p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-[#005684] dark:text-[#93ccff]">Report a missing hospital or healthcare facility</summary>
+              {reportSubmitted ? (
+                <p className="mt-3 text-xs text-[#195b4c] dark:text-[#aff0db]">Thank you. Your facility report has been submitted for review.</p>
+              ) : (
+                <form onSubmit={submitMissingFacilityReport} className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input required minLength={2} placeholder="Facility name" value={facilityReport.name} onChange={e => setFacilityReport(v => ({ ...v, name: e.target.value }))} className="rounded-lg border p-2 text-xs dark:bg-[#0d192b]" />
+                  <input required minLength={5} placeholder="Street address" value={facilityReport.address} onChange={e => setFacilityReport(v => ({ ...v, address: e.target.value }))} className="rounded-lg border p-2 text-xs dark:bg-[#0d192b]" />
+                  <input required placeholder="City" value={facilityReport.city} onChange={e => setFacilityReport(v => ({ ...v, city: e.target.value }))} className="rounded-lg border p-2 text-xs dark:bg-[#0d192b]" />
+                  <input required maxLength={2} minLength={2} placeholder="State (e.g. TX)" value={facilityReport.state} onChange={e => setFacilityReport(v => ({ ...v, state: e.target.value.toUpperCase() }))} className="rounded-lg border p-2 text-xs dark:bg-[#0d192b]" />
+                  <input placeholder="ZIP code (optional)" value={facilityReport.postalCode} onChange={e => setFacilityReport(v => ({ ...v, postalCode: e.target.value }))} className="rounded-lg border p-2 text-xs dark:bg-[#0d192b]" />
+                  <input placeholder="Additional details (optional)" value={facilityReport.notes} onChange={e => setFacilityReport(v => ({ ...v, notes: e.target.value }))} className="rounded-lg border p-2 text-xs dark:bg-[#0d192b]" />
+                  <button type="submit" disabled={reportSubmitting} className="sm:col-span-2 rounded-lg bg-[#001848] text-white py-2 text-xs font-semibold disabled:opacity-50">{reportSubmitting ? "Submitting…" : "Submit facility report"}</button>
+                </form>
+              )}
+            </details>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            <p className="text-[11px] text-gray-500">Showing the closest facilities within {discoveryRadius} miles. Distances are straight-line estimates, not driving distances.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {nearbyDistances.map((item) => (
+              <div key={item.id} className="p-2.5 rounded-xl bg-white dark:bg-[#111e33] border border-[rgba(11,37,89,0.08)] dark:border-[#233550] flex flex-col justify-between">
+                <div className="text-[11px] font-semibold text-[#001848] dark:text-white">{item.hospital}</div>
+                <div className="flex items-center justify-between mt-1 pt-1 border-t border-gray-100 dark:border-[#233550]">
+                  <span className="text-[11px] font-bold text-[#195b4c] dark:text-[#aff0db]">{item.distanceMiles} mi</span>
+                  <span className="text-[10px] text-gray-500">{item.driveMins > 0 ? "~" + item.driveMins + " min estimated drive" : "Distance estimate"}</span>
+                </div>
               </div>
-              <div className="flex items-center justify-between mt-1 pt-1 border-t border-gray-100 dark:border-[#233550]">
-                <span className="text-[11px] font-bold text-[#195b4c] dark:text-[#aff0db] tabular-nums">
-                  📍 {item.distanceMiles} mi
-                </span>
-                <span className="text-[10px] text-gray-500">
-                  ~{item.driveMins} min drive
-                </span>
-              </div>
+            ))}
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Pre-Launch Expansion Banner or Active State Confirmation */}
-      {!isValidState ? (
+      {currentState && !isValidState ? (
         <div className="mt-4 p-4 rounded-xl bg-[#FBF0D6] dark:bg-[#2a2010] border border-[#B9822E]/30 text-[#8c5d14] dark:text-[#f8d489] text-xs flex items-start gap-3 shadow-xs">
           <span className="material-symbols-outlined text-[20px] text-[#B9822E] shrink-0 mt-0.5">
             hourglass_top
@@ -483,7 +508,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
                 ? `Address locked! Listing will save to ${getStateName(currentState)} Expansion Waitlist.`
                 : "Address and hospital distance tags locked for listing."}
             </span>
-          ) : !isValidState ? (
+          ) : currentState && !isValidState ? (
             <span className="text-[#B9822E] dark:text-[#f8d489] text-[11px] font-medium">
               Confirm location to reserve your priority launch spot in {getStateName(currentState)}.
             </span>
@@ -494,17 +519,18 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
         <button
           type="button"
           onClick={handleConfirm}
-          className={`h-11 px-6 rounded-full text-white text-xs font-bold transition-all duration-200 ease-in-out shadow-xs inline-flex items-center justify-center gap-1.5 cursor-pointer ${
+          disabled={!hasSelectedLocation || !cityState || !addressInput.trim()}
+          className={`h-11 px-6 rounded-full text-white text-xs font-bold transition-all duration-200 ease-in-out shadow-xs inline-flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
             !isValidState
               ? "bg-[#B9822E] hover:bg-[#9d6d23] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#B9822E]"
               : "bg-[#005684] hover:bg-[#004266] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#004266]"
           }`}
         >
           <span className="material-symbols-outlined text-[16px]">
-            {!isValidState ? "bookmark_add" : "pin_drop"}
+            {currentState && !isValidState ? "bookmark_add" : "pin_drop"}
           </span>
           <span>
-            {!isValidState ? `Confirm & Save to ${currentState} Waitlist` : "Confirm Property Location"}
+            {currentState && !isValidState ? `Confirm & Save to ${currentState} Waitlist` : "Confirm Property Location"}
           </span>
         </button>
       </div>

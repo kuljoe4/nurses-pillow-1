@@ -10,6 +10,8 @@ export interface DbListingRow {
   latitude: number | string;
   longitude: number | string;
   nearest_hospital_id?: string;
+  nearest_hospital_name?: string;
+  nearest_hospital_distance?: number | string | null;
   monthly_rate: number | string;
   security_deposit?: number | string;
   cleaning_fee?: number | string;
@@ -30,9 +32,11 @@ export function mapDbListingToFrontend(dbRow: DbListingRow) {
     neighborhood: dbRow.address || '',
     city: dbRow.city,
     state: dbRow.state,
-    proximityToHospital: "Under 5 Miles",
-    nearestHospital: dbRow.nearest_hospital_id || 'Unknown',
-    driveTimeMinutes: 10,
+    proximityToHospital: dbRow.nearest_hospital_distance == null
+      ? 'Distance not calculated'
+      : Number(dbRow.nearest_hospital_distance).toFixed(1) + ' miles',
+    nearestHospital: dbRow.nearest_hospital_name || 'Not yet calculated',
+    driveTimeMinutes: 0,
     monthlyRate: Number(dbRow.monthly_rate),
     weeklyRate: Math.round(Number(dbRow.monthly_rate) / 4),
     beds: 1,

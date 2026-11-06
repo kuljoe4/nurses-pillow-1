@@ -137,6 +137,58 @@ export const db = {
         await railwayDb.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`);
         await railwayDb.query(`CREATE EXTENSION IF NOT EXISTS "btree_gist";`);
 
+        // National healthcare directory: facility data is independent of marketplace launch territories.
+        const healthcareDirectoryMigration = `
+          ALTER TABLE healthcare_facilities
+            ALTER COLUMN latitude DROP NOT NULL,
+            ALTER COLUMN longitude DROP NOT NULL,
+            ADD COLUMN IF NOT EXISTS cms_ccn VARCHAR(20),
+            ADD COLUMN IF NOT EXISTS npi VARCHAR(20),
+            ADD COLUMN IF NOT EXISTS facility_type VARCHAR(120),
+            ADD COLUMN IF NOT EXISTS phone VARCHAR(40),
+            ADD COLUMN IF NOT EXISTS county VARCHAR(100),
+            ADD COLUMN IF NOT EXISTS data_source VARCHAR(80) DEFAULT 'manual',
+            ADD COLUMN IF NOT EXISTS source_updated_at TIMESTAMPTZ,
+            ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ,
+            ADD COLUMN IF NOT EXISTS last_verified_at TIMESTAMPTZ,
+            ADD COLUMN IF NOT EXISTS data_quality_status VARCHAR(30) DEFAULT 'needs_geocoding';
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_healthcare_facilities_cms_ccn
+            ON healthcare_facilities(cms_ccn);
+          CREATE INDEX IF NOT EXISTS idx_healthcare_facilities_state_type
+            ON healthcare_facilities(state, facility_type);
+          CREATE INDEX IF NOT EXISTS idx_healthcare_facilities_coords_active
+            ON healthcare_facilities(latitude, longitude) WHERE is_active = true AND latitude IS NOT NULL AND longitude IS NOT NULL;
+          CREATE TABLE IF NOT EXISTS healthcare_directory_imports (
+            id BIGSERIAL PRIMARY KEY,
+            source VARCHAR(80) NOT NULL,
+            source_release_date DATE,
+            records_seen INTEGER NOT NULL DEFAULT 0,
+            records_inserted INTEGER NOT NULL DEFAULT 0,
+            records_updated INTEGER NOT NULL DEFAULT 0,
+            records_rejected INTEGER NOT NULL DEFAULT 0,
+            status VARCHAR(20) NOT NULL DEFAULT 'running',
+            started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            completed_at TIMESTAMPTZ,
+            error_message TEXT
+          );
+          CREATE TABLE IF NOT EXISTS healthcare_facility_reports (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            reporter_user_id VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL,
+            facility_name VARCHAR(255) NOT NULL,
+            address TEXT NOT NULL,
+            city VARCHAR(100) NOT NULL,
+            state VARCHAR(2) NOT NULL,
+            postal_code VARCHAR(20),
+            latitude DECIMAL(10,8),
+            longitude DECIMAL(11,8),
+            notes TEXT,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+        `;
+        await railwayDb.query(healthcareDirectoryMigration);
+
+
         // Ensure reset password & verification columns exist
         await railwayDb.query(`
           ALTER TABLE users
@@ -165,6 +217,7 @@ export const db = {
         // Set default value for security_deposit_amount
         await railwayDb.query(`ALTER TABLE listings ALTER COLUMN security_deposit_amount SET DEFAULT 0;`);
         await railwayDb.query(`ALTER TABLE listings ADD COLUMN IF NOT EXISTS extra_options JSONB DEFAULT '[]'::jsonb;`);
+        await railwayDb.query(`ALTER TABLE listings ADD COLUMN IF NOT EXISTS google_place_id VARCHAR(255);`);
 
         // Sanitize existing listings records to enforce security_deposit defaults
         await railwayDb.query(`UPDATE listings SET security_deposit_amount = 0 WHERE security_deposit_amount IS NULL;`);
@@ -246,6 +299,58 @@ export const db = {
         await pool.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`);
         await pool.query(`CREATE EXTENSION IF NOT EXISTS "btree_gist";`);
 
+        // National healthcare directory: facility data is independent of marketplace launch territories.
+        const healthcareDirectoryMigration = `
+          ALTER TABLE healthcare_facilities
+            ALTER COLUMN latitude DROP NOT NULL,
+            ALTER COLUMN longitude DROP NOT NULL,
+            ADD COLUMN IF NOT EXISTS cms_ccn VARCHAR(20),
+            ADD COLUMN IF NOT EXISTS npi VARCHAR(20),
+            ADD COLUMN IF NOT EXISTS facility_type VARCHAR(120),
+            ADD COLUMN IF NOT EXISTS phone VARCHAR(40),
+            ADD COLUMN IF NOT EXISTS county VARCHAR(100),
+            ADD COLUMN IF NOT EXISTS data_source VARCHAR(80) DEFAULT 'manual',
+            ADD COLUMN IF NOT EXISTS source_updated_at TIMESTAMPTZ,
+            ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ,
+            ADD COLUMN IF NOT EXISTS last_verified_at TIMESTAMPTZ,
+            ADD COLUMN IF NOT EXISTS data_quality_status VARCHAR(30) DEFAULT 'needs_geocoding';
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_healthcare_facilities_cms_ccn
+            ON healthcare_facilities(cms_ccn) WHERE cms_ccn IS NOT NULL;
+          CREATE INDEX IF NOT EXISTS idx_healthcare_facilities_state_type
+            ON healthcare_facilities(state, facility_type);
+          CREATE INDEX IF NOT EXISTS idx_healthcare_facilities_coords_active
+            ON healthcare_facilities(latitude, longitude) WHERE is_active = true AND latitude IS NOT NULL AND longitude IS NOT NULL;
+          CREATE TABLE IF NOT EXISTS healthcare_directory_imports (
+            id BIGSERIAL PRIMARY KEY,
+            source VARCHAR(80) NOT NULL,
+            source_release_date DATE,
+            records_seen INTEGER NOT NULL DEFAULT 0,
+            records_inserted INTEGER NOT NULL DEFAULT 0,
+            records_updated INTEGER NOT NULL DEFAULT 0,
+            records_rejected INTEGER NOT NULL DEFAULT 0,
+            status VARCHAR(20) NOT NULL DEFAULT 'running',
+            started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            completed_at TIMESTAMPTZ,
+            error_message TEXT
+          );
+          CREATE TABLE IF NOT EXISTS healthcare_facility_reports (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            reporter_user_id VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL,
+            facility_name VARCHAR(255) NOT NULL,
+            address TEXT NOT NULL,
+            city VARCHAR(100) NOT NULL,
+            state VARCHAR(2) NOT NULL,
+            postal_code VARCHAR(20),
+            latitude DECIMAL(10,8),
+            longitude DECIMAL(11,8),
+            notes TEXT,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+        `;
+        await pool.query(healthcareDirectoryMigration);
+
+
         await pool.query(`
           ALTER TABLE users
           ADD COLUMN IF NOT EXISTS reset_password_token VARCHAR(255),
@@ -273,6 +378,7 @@ export const db = {
         // Set default value for security_deposit_amount
         await pool.query(`ALTER TABLE listings ALTER COLUMN security_deposit_amount SET DEFAULT 0;`);
         await pool.query(`ALTER TABLE listings ADD COLUMN IF NOT EXISTS extra_options JSONB DEFAULT '[]'::jsonb;`);
+        await pool.query(`ALTER TABLE listings ADD COLUMN IF NOT EXISTS google_place_id VARCHAR(255);`);
 
         // Sanitize existing listings records to enforce security_deposit defaults
         await pool.query(`UPDATE listings SET security_deposit_amount = 0 WHERE security_deposit_amount IS NULL;`);

@@ -12,7 +12,9 @@
     "lint": "tsc --noEmit",
     "migrate": "tsx server/migrate.ts",
     "start": "tsx server.ts",
-    "seed": "tsx server/seed.ts"
+    "seed": "tsx server/seed.ts",
+    "import:hospitals:cms": "tsx scripts/import-cms-hospitals.ts",
+    "geocode:hospitals:cms": "tsx scripts/geocode-cms-hospitals.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",

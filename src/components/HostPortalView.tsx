@@ -262,6 +262,29 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
   // Screen B2 Editor Form State
   const [listingTitle, setListingTitle] = useState<string>('Sanctuary Stay');
   const [addressData, setAddressData] = useState<any>(null);
+
+  useEffect(() => {
+    if (editingListingId === 'new') {
+      setAddressData(null);
+      return;
+    }
+    if (!editingListingId) return;
+    const existing = hostListings.find((listing: any) => listing.id === editingListingId);
+    if (!existing) return;
+    setAddressData({
+      formattedAddress: existing.address_line1 || existing.address || '',
+      lat: Number(existing.latitude),
+      lng: Number(existing.longitude),
+      city: existing.city || '',
+      state: existing.state || '',
+      zipCode: existing.postal_code || existing.zip || '',
+      placeId: existing.google_place_id || null,
+      isExpansionWaitlist: Boolean(existing.is_expansion_waitlist),
+      nearestHospitalDistances: [],
+    });
+    setListingTitle(existing.title || 'Sanctuary Stay');
+  }, [editingListingId, hostListings]);
+
   const [propertyType, setPropertyType] = useState<'entire_property' | 'individual_rooms'>('individual_rooms');
   const [roomCount, setRoomCount] = useState<number>(2);
   const [roomPrices, setRoomPrices] = useState<number[]>([1950, 1850, 1750, 1650, 1550]);
@@ -376,20 +399,20 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
   const previewListingObject: HousingListing = {
     id: editingListingId || 'preview-id',
     title: listingTitle || 'Sanctuary Stay',
-    neighborhood: addressData?.formattedAddress || 'Durham, NC',
-    city: addressData?.city || 'Durham',
-    state: addressData?.state || 'NC',
-    proximityToHospital: 'Under 1 Mile',
-    nearestHospital: 'Duke University Hospital',
-    driveTimeMinutes: 5,
+    neighborhood: addressData?.formattedAddress || 'Property address not selected',
+    city: addressData?.city || '',
+    state: addressData?.state || '',
+    proximityToHospital: 'Calculated from the confirmed property location',
+    nearestHospital: 'Nearby hospitals are detected automatically',
+    driveTimeMinutes: 0,
     monthlyRate: roomPrices[0] || 1950,
     weeklyRate: Math.round((roomPrices[0] || 1950) / 4),
     beds: roomCount || 1,
     baths: 1,
     sqft: 850,
     images: listingPhotos.map(p => p.url),
-    nurseRating: 5.0,
-    reviewsCount: 1,
+    nurseRating: 0,
+    reviewsCount: 0,
     amenities: {
       blackoutCurtains: hasBlackout,
       whiteNoiseMachine: true,
@@ -402,7 +425,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
       privateEntrance: propertyType === 'entire_property',
     },
     contractFlexProtection: cancellationTier === 'Flexible',
-    featuredSanctuary: true,
+    featuredSanctuary: false,
     propertyType: propertyType,
     petFee: petFee,
     parkingFee: parkingFee,
@@ -1390,6 +1413,16 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
                     <div className="mt-4">
                       <HostAddressMapping
                         isNightShiftMode={isNightShiftMode}
+                        initialLocation={addressData?.formattedAddress ? {
+                          formattedAddress: addressData.formattedAddress,
+                          lat: Number(addressData.lat),
+                          lng: Number(addressData.lng),
+                          city: addressData.city,
+                          state: addressData.state,
+                          zipCode: addressData.zipCode,
+                          placeId: addressData.placeId,
+                        } : undefined}
+                        onAddressInvalidated={() => setAddressData(null)}
                         onAddressConfirmed={(data) => setAddressData(data)}
                       />
                     </div>

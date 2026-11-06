@@ -1782,8 +1782,7 @@ async function startServer() {
         SELECT h.id, h.name, h.health_system, h.address_line1 as address, h.city, h.state, h.postal_code as zip,
           h.latitude, h.longitude, h.trauma_level, h.teaching_hospital, h.parking_type, h.nurse_feedback_score
         FROM healthcare_facilities h
-        INNER JOIN active_territories t
-          ON UPPER(t.state_code) = UPPER(h.state) AND t.is_active = true
+        WHERE COALESCE(h.is_active, true) = true
         ORDER BY h.state, h.city, h.name
       `);
       res.json(result.rows);
@@ -1793,12 +1792,114 @@ async function startServer() {
     }
   });
 
+  // Find verified directory hospitals near a confirmed property address.
+  app.get('/api/hospitals/nearby', async (req: Request, res: Response) => {
+    try {
+      const lat = Number(req.query.lat);
+      const lng = Number(req.query.lng);
+      const requestedRadius = Number(req.query.radiusMiles ?? 20);
+      const radiusMiles = Number.isFinite(requestedRadius) ? Math.min(Math.max(requestedRadius, 1), 50) : 20;
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+        return res.status(400).json({ error: 'Valid latitude and longitude are required.' });
+      }
+
+      const result = await db.query(
+        `SELECT h.id, h.name, h.health_system, h.city, h.state,
+          ROUND((3958.8 * ACOS(LEAST(1, GREATEST(-1,
+            COS(RADIANS($1)) * COS(RADIANS(h.latitude::double precision)) *
+            COS(RADIANS(h.longitude::double precision) - RADIANS($2)) +
+            SIN(RADIANS($1)) * SIN(RADIANS(h.latitude::double precision))
+          ))))::numeric, 1) AS distance_miles
+         FROM healthcare_facilities h
+         WHERE COALESCE(h.is_active, true) = true
+           AND h.latitude IS NOT NULL AND h.longitude IS NOT NULL
+           AND 3958.8 * ACOS(LEAST(1, GREATEST(-1,
+             COS(RADIANS($1)) * COS(RADIANS(h.latitude::double precision)) *
+             COS(RADIANS(h.longitude::double precision) - RADIANS($2)) +
+             SIN(RADIANS($1)) * SIN(RADIANS(h.latitude::double precision))
+           ))) <= $3
+         ORDER BY distance_miles ASC, h.name ASC
+         LIMIT 10`,
+        [lat, lng, radiusMiles]
+      );
+
+      const stateCode = typeof req.query.state === 'string' ? req.query.state.toUpperCase() : null;
+      const territory = stateCode
+        ? await db.query('SELECT is_active FROM active_territories WHERE UPPER(state_code) = $1 LIMIT 1', [stateCode])
+        : null;
+      res.json({
+        hospitals: result.rows,
+        radius_miles: radiusMiles,
+        territory_active: territory?.rows?.[0]?.is_active === true,
+        territory_known: Boolean(territory?.rows?.length),
+        data_scope: 'national_directory',
+      });
+    } catch (error: any) {
+      console.error('Error finding nearby hospitals:', error.message);
+      res.status(503).json({ error: 'Nearby hospital lookup is temporarily unavailable.' });
+    }
+  });
+
+  // Allow hosts to flag a missing or incorrectly listed healthcare facility for admin review.
+  app.post('/api/hospitals/missing-report', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const facilityName = String(req.body.facilityName || '').trim();
+      const address = String(req.body.address || '').trim();
+      const city = String(req.body.city || '').trim();
+      const state = String(req.body.state || '').trim().toUpperCase();
+      const postalCode = String(req.body.postalCode || '').trim();
+      const notes = String(req.body.notes || '').trim();
+      if (facilityName.length < 2 || address.length < 5 || city.length < 2 || !/^[A-Z]{2}$/.test(state)) {
+        return res.status(400).json({ error: 'Facility name, street address, city and valid state are required.' });
+      }
+      const saved = await db.query(
+        `INSERT INTO healthcare_facility_reports
+          (reporter_user_id, facility_name, address, city, state, postal_code, notes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, status, created_at`,
+        [req.user?.id || null, facilityName, address, city, state, postalCode || null, notes || null]
+      );
+      res.status(201).json({ message: 'Facility report submitted for review.', report: saved.rows[0] });
+    } catch (error: any) {
+      console.error('Missing facility report failed:', error.message);
+      res.status(503).json({ error: 'Unable to submit facility report right now.' });
+    }
+  });
+
+  // Admin visibility into national directory coverage and data quality.
+  app.get('/api/admin/healthcare-directory/summary', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });
+    try {
+      const [totals, states, imports, reports] = await Promise.all([
+        db.query(`SELECT COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE latitude IS NOT NULL AND longitude IS NOT NULL)::int AS geocoded,
+          COUNT(*) FILTER (WHERE latitude IS NULL OR longitude IS NULL)::int AS needs_geocoding,
+          COUNT(*) FILTER (WHERE data_source = 'CMS_HOSPITAL_GENERAL_INFORMATION')::int AS cms_records
+          FROM healthcare_facilities WHERE COALESCE(is_active, true) = true`),
+        db.query(`SELECT state, COUNT(*)::int AS facilities,
+          COUNT(*) FILTER (WHERE latitude IS NOT NULL AND longitude IS NOT NULL)::int AS geocoded
+          FROM healthcare_facilities WHERE COALESCE(is_active, true) = true
+          GROUP BY state ORDER BY state`),
+        db.query(`SELECT * FROM healthcare_directory_imports ORDER BY started_at DESC LIMIT 5`),
+        db.query(`SELECT COUNT(*) FILTER (WHERE status = 'pending')::int AS pending
+          FROM healthcare_facility_reports`)
+      ]);
+      res.json({ totals: totals.rows[0], states: states.rows, recentImports: imports.rows, pendingFacilityReports: reports.rows[0]?.pending || 0 });
+    } catch (error: any) {
+      console.error('Healthcare directory summary failed:', error.message);
+      res.status(503).json({ error: 'Healthcare directory summary unavailable.' });
+    }
+  });
+
   // Housing Listings
   app.get('/api/listings', async (req: Request, res: Response) => {
     try {
       const result = await db.query(`
         SELECT l.id, l.host_id, l.title, l.property_type, l.address_line1 as address, l.city, l.state, l.postal_code as zip,
-        l.latitude, l.longitude, l.nearest_hospital_id, l.monthly_rent as monthly_rate, l.security_deposit_amount as security_deposit,
+        l.latitude, l.longitude, l.nearest_hospital_id,
+        (SELECT h.name FROM healthcare_facilities h WHERE h.id = l.nearest_hospital_id) as nearest_hospital_name,
+        (SELECT d.distance_miles FROM listing_hospital_distances d WHERE d.listing_id = l.id AND d.facility_id = l.nearest_hospital_id LIMIT 1) as nearest_hospital_distance,
+        l.monthly_rent as monthly_rate, l.security_deposit_amount as security_deposit,
         l.cleaning_fee, l.pet_fee, l.parking_fee, l.extra_options, l.is_published as is_active, l.cancellation_policy as cancellation_tier,
         u.full_name as host_name, u.is_host_verified as host_verified,
         COALESCE(
@@ -1964,7 +2065,10 @@ async function startServer() {
 
       const listingsRes = await db.query(`
         SELECT l.id, l.host_id, l.title, l.property_type, l.address_line1 as address, l.city, l.state, l.postal_code as zip,
-        l.latitude, l.longitude, l.nearest_hospital_id, l.monthly_rent as monthly_rate, l.security_deposit_amount as security_deposit,
+        l.latitude, l.longitude, l.nearest_hospital_id,
+        (SELECT h.name FROM healthcare_facilities h WHERE h.id = l.nearest_hospital_id) as nearest_hospital_name,
+        (SELECT d.distance_miles FROM listing_hospital_distances d WHERE d.listing_id = l.id AND d.facility_id = l.nearest_hospital_id LIMIT 1) as nearest_hospital_distance,
+        l.monthly_rent as monthly_rate, l.security_deposit_amount as security_deposit,
         l.cleaning_fee, l.pet_fee, l.parking_fee, l.extra_options, l.is_published as is_active, l.cancellation_policy as cancellation_tier,
         u.full_name as host_name, u.is_host_verified as host_verified,
         COALESCE(
@@ -3461,10 +3565,40 @@ async function startServer() {
         }
 
         const addressData = req.body.addressData || {};
-        const formattedAddress = addressData.formattedAddress || req.body.addressLine1 || "";
-        if (!formattedAddress || formattedAddress.length < 5) {
-          return res.status(400).json({ error: "A valid property street address is required." });
+        const formattedAddress = String(addressData.formattedAddress || req.body.addressLine1 || "").trim();
+        const propertyLat = Number(addressData.lat ?? req.body.lat);
+        const propertyLng = Number(addressData.lng ?? req.body.lng);
+        const propertyCity = String(addressData.city || req.body.city || "").trim();
+        const propertyState = String(addressData.state || state || "").trim().toUpperCase();
+        const propertyZip = String(addressData.zipCode || req.body.postalCode || "").trim();
+        const propertyPlaceId = typeof addressData.placeId === "string" ? addressData.placeId : null;
+
+        if (formattedAddress.length < 5 || !propertyCity || !/^[A-Z]{2}$/.test(propertyState) || !propertyZip ||
+            !Number.isFinite(propertyLat) || Math.abs(propertyLat) > 90 ||
+            !Number.isFinite(propertyLng) || Math.abs(propertyLng) > 180) {
+          return res.status(400).json({ error: "Select a complete property address from the suggestions so its location can be verified." });
         }
+
+        const nearbyHospitalsRes = await db.query(
+          `SELECT h.id,
+             3958.8 * ACOS(LEAST(1, GREATEST(-1,
+               COS(RADIANS($1)) * COS(RADIANS(h.latitude::double precision)) *
+               COS(RADIANS(h.longitude::double precision) - RADIANS($2)) +
+               SIN(RADIANS($1)) * SIN(RADIANS(h.latitude::double precision))
+             ))) AS distance_miles
+           FROM healthcare_facilities h
+           WHERE COALESCE(h.is_active, true) = true
+             AND h.latitude IS NOT NULL AND h.longitude IS NOT NULL
+             AND 3958.8 * ACOS(LEAST(1, GREATEST(-1,
+               COS(RADIANS($1)) * COS(RADIANS(h.latitude::double precision)) *
+               COS(RADIANS(h.longitude::double precision) - RADIANS($2)) +
+               SIN(RADIANS($1)) * SIN(RADIANS(h.latitude::double precision))
+             ))) <= 50
+           ORDER BY distance_miles ASC
+           LIMIT 10`,
+          [propertyLat, propertyLng]
+        );
+        const nearestHospitalId = nearbyHospitalsRes.rows[0]?.id || null;
 
         const roomPrices = Array.isArray(req.body.roomPrices) && req.body.roomPrices.length > 0
           ? req.body.roomPrices
@@ -3496,9 +3630,11 @@ async function startServer() {
                    postal_code = $10,
                    latitude = $11,
                    longitude = $12,
-                   title = $14,
-                   is_expansion_waitlist = $15
-               WHERE id = $13`,
+                   nearest_hospital_id = $13,
+                   google_place_id = $14,
+                   title = $16,
+                   is_expansion_waitlist = $17
+               WHERE id = $15`,
               [
                 req.body.propertyType,
                 roomPrices[0] || req.body.monthlyRate || 1950,
@@ -3506,12 +3642,14 @@ async function startServer() {
                 petFee,
                 parkingFee,
                 extraOptions,
-                addressData.formattedAddress || req.body.addressLine1 || "123 Healing Way",
-                addressData.city || req.body.city || "Durham",
-                addressData.state || state,
-                addressData.zipCode || req.body.postalCode || "27705",
-                addressData.lat || req.body.lat || 36.0,
-                addressData.lng || req.body.lng || -78.9,
+                formattedAddress,
+                propertyCity,
+                propertyState,
+                propertyZip,
+                propertyLat,
+                propertyLng,
+                nearestHospitalId,
+                propertyPlaceId,
                 listingId,
                 listingTitle,
                 isExpansionWaitlist
@@ -3535,20 +3673,21 @@ async function startServer() {
           listingId = `lst_${uuidv4()}`;
           const shouldPublish = isStateActiveInFootprint && !isExpansionWaitlist;
           const newListingRes = await db.query(
-            `INSERT INTO listings (id, host_id, title, property_type, address_line1, city, state, postal_code, latitude, longitude, nearest_hospital_id, monthly_rent, security_deposit_amount, cleaning_fee, pet_fee, parking_fee, extra_options, is_published, is_expansion_waitlist)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id`,
+            `INSERT INTO listings (id, host_id, title, property_type, address_line1, city, state, postal_code, latitude, longitude, nearest_hospital_id, google_place_id, monthly_rent, security_deposit_amount, cleaning_fee, pet_fee, parking_fee, extra_options, is_published, is_expansion_waitlist)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id`,
             [
               listingId,
               req.user.id,
               listingTitle,
               req.body.propertyType || "individual_rooms",
-              addressData.formattedAddress || req.body.addressLine1 || "123 Healing Way",
-              addressData.city || req.body.city || "Durham",
-              addressData.state || state,
-              addressData.zipCode || req.body.postalCode || "27705",
-              addressData.lat || req.body.lat || 36.0,
-              addressData.lng || req.body.lng || -78.9,
-              "hosp-duke",
+              formattedAddress,
+              propertyCity,
+              propertyState,
+              propertyZip,
+              propertyLat,
+              propertyLng,
+              nearestHospitalId,
+              propertyPlaceId,
               roomPrices[0] || 1950,
               0,
               150,
@@ -3560,6 +3699,18 @@ async function startServer() {
             ]
           );
           listingId = newListingRes.rows[0].id;
+        }
+
+        // Refresh the complete nearby-hospital cache whenever the property moves.
+        await db.query("DELETE FROM listing_hospital_distances WHERE listing_id = $1", [listingId]);
+        for (const hospital of nearbyHospitalsRes.rows) {
+          await db.query(
+            `INSERT INTO listing_hospital_distances (listing_id, facility_id, distance_miles)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (listing_id, facility_id)
+             DO UPDATE SET distance_miles = EXCLUDED.distance_miles, calculated_at = NOW()`,
+            [listingId, hospital.id, Number(hospital.distance_miles)]
+          );
         }
 
         // Sync room configurations

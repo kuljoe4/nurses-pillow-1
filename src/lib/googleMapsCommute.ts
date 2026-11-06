@@ -4,6 +4,8 @@
  * between housing listings and the clinician's selected hospital assignment.
  */
 
+import { db } from "../services/database";
+
 export interface HospitalCoordinates {
   name: string;
   shortName: string;
@@ -188,6 +190,25 @@ export function resolveHospitalCoordinates(query: string): HospitalCoordinates {
 
   const normalized = query.toLowerCase();
 
+  // Prefer the active PostgreSQL hospital directory over the legacy coordinate map.
+  const directoryMatch = db.getHospitals().find((hospital: any) =>
+    hospital.name?.toLowerCase() === normalized ||
+    hospital.name?.toLowerCase().includes(normalized) ||
+    normalized.includes(hospital.name?.toLowerCase() || "\u0000")
+  );
+  if (directoryMatch && Number.isFinite(Number(directoryMatch.latitude)) && Number.isFinite(Number(directoryMatch.longitude))) {
+    const result: HospitalCoordinates = {
+      name: directoryMatch.name,
+      shortName: directoryMatch.name,
+      address: directoryMatch.address || [directoryMatch.city, directoryMatch.state].filter(Boolean).join(", "),
+      lat: Number(directoryMatch.latitude),
+      lng: Number(directoryMatch.longitude),
+      healthSystem: directoryMatch.health_system || "",
+    };
+    resolveHospitalCache.set(normalized, result);
+    return result;
+  }
+
   if (resolveHospitalCache.has(normalized)) {
     return resolveHospitalCache.get(normalized)!;
   }
@@ -244,7 +265,19 @@ export function getListingCoordinates(listing: {
   state?: string;
   nearestHospital?: string;
   driveTimeMinutes?: number;
+  latitude?: number;
+  longitude?: number;
 }): ListingCoordinates {
+  if (Number.isFinite(Number(listing.latitude)) && Number.isFinite(Number(listing.longitude)) &&
+      Number(listing.latitude) !== 0 && Number(listing.longitude) !== 0) {
+    return {
+      lat: Number(listing.latitude),
+      lng: Number(listing.longitude),
+      city: listing.city || "",
+      state: listing.state || "",
+    };
+  }
+
   if (LISTING_GEO_MAP[listing.id]) {
     return LISTING_GEO_MAP[listing.id];
   }

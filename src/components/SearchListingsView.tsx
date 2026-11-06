@@ -291,12 +291,15 @@ useBodyScrollLock(isGsaModalOpen);
 
   const [popularHubs, setPopularHubs] = useState<string[]>([]);
   useEffect(() => {
-    Promise.resolve(db.getHospitals()).then(data => {
-      if (data && data.length > 0) {
-        setPopularHubs(data.map((h: any) => h.name));
-      }
-    }).catch(console.error);
-  }, []);
+    let active = true;
+    db.fetchHospitals().then((data: any[]) => {
+      if (!active || !Array.isArray(data)) return;
+      const names = data.map((hospital: any) => hospital.name).filter(Boolean);
+      setPopularHubs(names);
+      setSelectedHospital((current) => current || initialHospital || names[0] || "");
+    }).catch((error) => console.error("Unable to load the active hospital directory:", error));
+    return () => { active = false; };
+  }, [initialHospital]);
 
   const filteredHospitals = useMemo(() => {
     if (!hospitalSearchQuery.trim()) return popularHubs;
