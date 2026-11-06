@@ -80,7 +80,6 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
   const [nearbyDistances, setNearbyDistances] = useState<{ hospital: string; distanceMiles: number; driveMins: number; id: string }[]>([]);
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [discoveryRadius, setDiscoveryRadius] = useState(20);
-  const [directoryTerritoryActive, setDirectoryTerritoryActive] = useState<boolean | null>(null);
   const [placeId, setPlaceId = useState<string | null>(initialLocation?.placeId || null);
 
   useEffect(() => {
@@ -228,13 +227,11 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
         let result = await request(20);
         if (controller.signal.aborted) return;
         let hospitals = Array.isArray(result?.hospitals) ? result.hospitals : [];
-        setDirectoryTerritoryActive(result?.territory_active === true);
         if (hospitals.length === 0) {
           result = await request(50);
           if (controller.signal.aborted) return;
           hospitals = Array.isArray(result?.hospitals) ? result.hospitals : [];
           setDiscoveryRadius(50);
-          setDirectoryTerritoryActive(result?.territory_active === true);
         }
         setNearbyDistances(hospitals.map((hospital: any) => ({
           id: hospital.id,
@@ -436,7 +433,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
         {!isConfirmed ? (
           <p className="text-xs text-gray-500">Select and confirm the property address to find hospitals nearby.</p>
         ) : nearbyLoading ? (
-          <p className="text-xs text-gray-500">Finding verified hospitals within 20 miles…</p>
+          <p className="text-xs text-gray-500">Searching the nationwide hospital directory…</p>
         ) : nearbyDistances.length === 0 ? (
           <div className="space-y-2">
             <p className="text-xs text-gray-600 dark:text-gray-300">No geocoded hospitals were found within 50 miles of this address. This does not mean there are no hospitals nearby; some directory records may still need coordinates or verification.</p>
