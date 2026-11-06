@@ -283,16 +283,6 @@ export const Footer: React.FC<FooterProps> = ({
                     Platform Messages
                   </button>
                 </li>
-                <li>
-                  <button onClick={() => onSelectTab('phase1-inventory')} className="hover:text-[#005684] focus-visible:text-[#005684] transition-colors text-left cursor-pointer">
-                    Phase 1 Architecture Inventory
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => onSelectTab('mobile-preview')} className="hover:text-[#005684] focus-visible:text-[#005684] transition-colors text-left cursor-pointer">
-                    Native Mobile Preview
-                  </button>
-                </li>
               </ul>
             </div>
           ) : (
