@@ -293,6 +293,7 @@ CREATE TABLE listings (
     postal_code VARCHAR(20) NOT NULL,
     latitude DECIMAL(10, 8) NOT NULL,
     longitude DECIMAL(11, 8) NOT NULL,
+    google_place_id VARCHAR(255),
 
     -- Entire Property Base Pricing & Fees (Applicable if rented as full home)
     monthly_rent DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
