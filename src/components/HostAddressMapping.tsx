@@ -11,6 +11,15 @@ import { ACTIVE_STATES, isStateActive, getStateName } from "../lib/constants/sta
 interface HostAddressMappingProps {
   isNightShiftMode: boolean;
   initialAddress?: string;
+  initialLocation?: {
+    formattedAddress: string;
+    lat: number;
+    lng: number;
+    city: string;
+    state: string;
+    zipCode: string;
+    placeId?: string | null;
+  };
   dynamicActiveStates?: string[];
   onAddressConfirmed?: (addressData: {
     formattedAddress: string;
@@ -47,14 +56,20 @@ const PanToLocation: React.FC<{ coords: { lat: number; lng: number } }> = ({
 export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
   isNightShiftMode,
   initialAddress = "",
+  initialLocation,
   dynamicActiveStates,
   onAddressConfirmed,
 }) => {
-  const [addressInput, setAddressInput] = useState(initialAddress);
+  const [addressInput, setAddressInput] = useState(initialLocation?.formattedAddress || initialAddress);
   const [unitApt, setUnitApt] = useState("");
-  const [coords, setCoords] = useState<{ lat: number; lng: number }>({ lat: 39.5, lng: -98.35 });
-  const [cityState, setCityState] = useState("");
-  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [coords, setCoords] = useState<{ lat: number; lng: number }>(
+    initialLocation ? { lat: initialLocation.lat, lng: initialLocation.lng } : { lat: 39.5, lng: -98.35 }
+  );
+  const [cityState, setCityState] = useState(
+    initialLocation ? [initialLocation.city, initialLocation.state, initialLocation.zipCode].filter(Boolean).join(", ") : ""
+  );
+  const [isConfirmed, setIsConfirmed] = useState(Boolean(initialLocation));
+  const [hasSelectedLocation, setHasSelectedLocation] = useState(Boolean(initialLocation));
   const [placesSuggestions, setPlacesSuggestions] = useState<
     google.maps.places.AutocompleteSuggestion[]
   >([]);
@@ -62,7 +77,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
   const [isSearching, setIsSearching] = useState(false);
   const [nearbyDistances, setNearbyDistances] = useState<{ hospital: string; distanceMiles: number; driveMins: number; id: string }[]>([]);
   const [nearbyLoading, setNearbyLoading] = useState(false);
-  const [placeId, setPlaceId] = useState<string | null>(null);
+  const [placeId, setPlaceId] = useState<string | null>(initialLocation?.placeId || null);
 
   // Modern Places Library (Places API (New))
   const placesLibrary = useMapsLibrary("places");
@@ -74,6 +89,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
     setAddressInput(text);
     setIsConfirmed(false);
     setPlaceId(null);
+    setHasSelectedLocation(false);
     setCityState("");
     setNearbyDistances([]);
     setIsDropdownOpen(true);
@@ -146,6 +162,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
         throw new Error("The selected address did not include map coordinates.");
       }
       setPlaceId(place.id || null);
+      setHasSelectedLocation(true);
       setIsConfirmed(false);
       setNearbyDistances([]);
 
@@ -201,7 +218,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
   }, [isConfirmed, coords.lat, coords.lng]);
 
   const handleConfirm = () => {
-    if (!placeId || !cityState || !addressInput.trim()) return;
+    if (!hasSelectedLocation || !cityState || !addressInput.trim()) return;
     setIsConfirmed(true);
     onAddressConfirmed?.({
       formattedAddress: `${addressInput} ${unitApt ? `(${unitApt})` : ""}`.trim(),
@@ -414,7 +431,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
         <button
           type="button"
           onClick={handleConfirm}
-          disabled={!placeId || !cityState || !addressInput.trim()}
+          disabled={!hasSelectedLocation || !cityState || !addressInput.trim()}
           className={`h-11 px-6 rounded-full text-white text-xs font-bold transition-all duration-200 ease-in-out shadow-xs inline-flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
             !isValidState
               ? "bg-[#B9822E] hover:bg-[#9d6d23] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#B9822E]"
