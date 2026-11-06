@@ -14,19 +14,18 @@ export const ForHostsView: React.FC<ForHostsViewProps> = ({
   const [estimatedMonthlyRent, setEstimatedMonthlyRent] = useState<number>(2400);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
-  // Financial calculations
-  const platformFee = Math.round(estimatedMonthlyRent * 0.05);
-  const hostNetMonthly = estimatedMonthlyRent - platformFee;
-  const rotation13Weeks = hostNetMonthly * 3;
+  // Show gross rent only: the applicable host service fee is configurable
+  // and should be confirmed from the booking details before acceptance.
+  const rotation13Weeks = estimatedMonthlyRent * 3;
 
   const faqs = [
     {
-      q: 'What is the Midterm Assignment Cancellation Protection (Contract Flex)?',
-      a: 'Travel nursing rotations in North Carolina typically run for 13 weeks. Occasionally, a hospital system experiences census drops and reschedules or terminates an assignment early with agency documentation. Our policy protects both parties: traveling clinicians cancel remaining weeks penalty-free, while property hosts receive a guaranteed 14-day vacancy stipend payout and immediate calendar re-listing to mitigate downtime.',
+      q: 'What happens if a clinician's assignment changes?',
+      a: 'If a clinician's assignment changes, contact support. Cancellations, refunds, and any host compensation are handled according to the terms that apply to the booking. Review those terms before accepting a request.',
     },
     {
       q: 'How does Nurses Pillow verify clinician guests?',
-      a: 'Every traveling clinician must complete our 4-step verification: two-factor authentication, government ID biometric match, and real-time Nursys / State Nursing Board primary source verification. You host only licensed healthcare professionals.',
+      a: 'Clinicians complete identity and professional credential checks before receiving booking access. Verification status is reviewed by Nurses Pillow; hosts do not need to collect or store license documents.',
     },
     {
       q: 'What are the day-sleeper property requirements?',
@@ -34,11 +33,11 @@ export const ForHostsView: React.FC<ForHostsViewProps> = ({
     },
     {
       q: 'How and when do hosts get paid?',
-      a: 'Payouts are powered by Stripe Connect Escrow. Rent is collected from the clinician prior to move-in and disbursed directly to your connected bank account 24 hours after verified check-in, then automatically on a monthly schedule.',
+      a: 'Payouts are sent to your connected account. Applicable payout timing and status are shown in your host dashboard and booking details.',
     },
     {
       q: 'What is the platform fee?',
-      a: 'Nurses Pillow charges a flat 5% host take-rate. There are zero traveler booking fees, ensuring your listing remains competitive and transparent compared to vacation rental platforms charging 15% to 25%.',
+      a: 'A host service fee applies to bookings. The applicable rate is displayed before you accept a booking. Nurses Pillow does not charge clinicians a booking fee.',
     },
   ];
 
@@ -67,7 +66,7 @@ export const ForHostsView: React.FC<ForHostsViewProps> = ({
               isNightShiftMode ? 'text-[#9CB3D3]' : 'text-[#404850]'
             }`}
           >
-            Provide peaceful, furnished mid-term accommodations for travel nurses on 13-week hospital assignments. Enjoy 100% board-verified clinical guests, zero parties, and reliable monthly income.
+            Provide peaceful, furnished mid-term accommodations for traveling clinicians during hospital assignments.
           </p>
           <div className="pt-2 flex flex-wrap items-center justify-center gap-4">
             {onGoToHostPortal && (
@@ -103,14 +102,14 @@ export const ForHostsView: React.FC<ForHostsViewProps> = ({
               <div className="w-12 h-12 rounded-2xl bg-[#aff0db]/25 text-[#195b4c] dark:text-[#aff0db] flex items-center justify-center">
                 <span className="material-symbols-outlined text-[26px]">verified</span>
               </div>
-              <h3 className="text-xl font-bold">100% Verified Clinician Guests</h3>
+              <h3 className="text-xl font-bold">Clinician Credentials Reviewed</h3>
               <p className="text-sm opacity-80 leading-relaxed">
-                Every tenant is a background-verified, licensed RN or allied health professional on an active hospital rotation. Zero parties, quiet professional lifestyles, and prompt respect for your home.
+                Clinician credentials are reviewed before booking access is approved. Verification status helps hosts understand the review completed for each prospective guest.
               </p>
             </div>
             <div className="mt-6 pt-4 border-t border-black/5 dark:border-white/10 text-xs font-semibold text-[#195b4c] dark:text-[#aff0db] flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[16px]">check_circle</span>
-              Nursys Primary Source Board Checked
+              Professional credentials reviewed
             </div>
           </div>
 
@@ -125,14 +124,14 @@ export const ForHostsView: React.FC<ForHostsViewProps> = ({
               <div className="w-12 h-12 rounded-2xl bg-[#005684]/15 text-[#005684] dark:text-[#93ccff] flex items-center justify-center">
                 <span className="material-symbols-outlined text-[26px]">calendar_month</span>
               </div>
-              <h3 className="text-xl font-bold">30–90 Day Mid-Term Stability</h3>
+              <h3 className="text-xl font-bold">Mid-Term Housing for Clinicians</h3>
               <p className="text-sm opacity-80 leading-relaxed">
-                Escape the relentless churn, guest messaging, and high turnover of weekend vacation rentals. Travel healthcare rotations provide steady, multi-month occupancy with predictable monthly bank deposits.
+                Escape the relentless churn, guest messaging, and high turnover of weekend vacation rentals. Many healthcare assignments run for several weeks or months, offering hosts an opportunity to accommodate longer stays.
               </p>
             </div>
             <div className="mt-6 pt-4 border-t border-black/5 dark:border-white/10 text-xs font-semibold text-[#005684] dark:text-[#93ccff] flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[16px]">payments</span>
-              Direct Stripe Bank Payouts • Flat 5% Fee
+              Payouts to your connected account
             </div>
           </div>
 
@@ -147,14 +146,14 @@ export const ForHostsView: React.FC<ForHostsViewProps> = ({
               <div className="w-12 h-12 rounded-2xl bg-[#ffdf91]/25 text-[#745b0d] dark:text-[#ffdf91] flex items-center justify-center">
                 <span className="material-symbols-outlined text-[26px]">shield</span>
               </div>
-              <h3 className="text-xl font-bold">Contract Flex Vacancy Guarantee</h3>
+              <h3 className="text-xl font-bold">Support when assignments change</h3>
               <p className="text-sm opacity-80 leading-relaxed">
-                If a travel nurse's hospital assignment is cancelled early due to clinical staffing shifts, our protection policy provides you with a 14-day vacancy stipend and calendar re-listing priority.
+                If a clinician's assignment changes, contact support. Any cancellation, refund, or host compensation is handled under the terms that apply to the booking.
               </p>
             </div>
             <div className="mt-6 pt-4 border-t border-black/5 dark:border-white/10 text-xs font-semibold text-[#745b0d] dark:text-[#ffdf91] flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[16px]">gavel</span>
-              14-Day Vacancy Stipend Protection
+              Booking terms apply
             </div>
           </div>
         </div>
@@ -214,18 +213,12 @@ export const ForHostsView: React.FC<ForHostsViewProps> = ({
                   <span className="font-bold">${estimatedMonthlyRent.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between pb-2 border-b border-black/5 dark:border-white/10">
-                  <span className="opacity-80">Platform Take-Rate (5% Flat):</span>
-                  <span className="font-semibold text-rose-600 dark:text-rose-400">-${platformFee}</span>
-                </div>
-                <div className="flex justify-between pb-2 border-b border-black/5 dark:border-white/10">
-                  <span className="opacity-80">Net Monthly Host Payout:</span>
-                  <span className="font-bold text-[#195b4c] dark:text-[#aff0db]">
-                    ${hostNetMonthly.toLocaleString()}
-                  </span>
+                  <span className="opacity-80">Host service fee:</span>
+                  <span className="font-semibold text-gray-500 dark:text-gray-400">Shown before booking</span>
                 </div>
                 <div className="pt-2 flex justify-between items-baseline">
                   <span className="text-xs font-bold uppercase tracking-wide">
-                    Est. 13-Week Rotation Net:
+                    Est. 13-Week Gross Rent:
                   </span>
                   <span className="text-2xl font-extrabold text-[#005684] dark:text-[#93ccff]">
                     ${rotation13Weeks.toLocaleString()}
@@ -260,7 +253,7 @@ export const ForHostsView: React.FC<ForHostsViewProps> = ({
             </span>
             <h2 className="text-2xl sm:text-3xl font-bold">Nurses Pillow Property Checklist</h2>
             <p className="text-sm opacity-80 mt-1 max-w-2xl">
-              To guarantee rest and recovery for clinicians treating patients at major hospitals, all registered properties meet our 4 essential criteria:
+              To support rest and recovery between clinical shifts, listings should meet these four property standards:
             </p>
           </div>
 
