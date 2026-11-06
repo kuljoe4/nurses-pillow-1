@@ -28,13 +28,13 @@ Do not run concurrent imports. Review the audit row and rejected count after com
 
 ## Geocoding
 
-Geocoding uses Google Places API (New), which can incur billable usage. Set `GOOGLE_MAPS_API_KEY` on the controlled import environment with Places API access enabled, then run bounded batches:
+Geocoding uses the US Census Bureau Geocoder, a public address-to-coordinate service that does not require a Google API key. It uses the current Public Address Range benchmark. Run bounded batches:
 
 ```bash
 GEOCODE_LIMIT=100 npm run geocode:hospitals:cms
 ```
 
-Repeat batches after reviewing match quality and Google usage. The script accepts a candidate only when the returned place name closely matches the CMS facility name. Review ambiguous or skipped records manually. A Places match establishes a coordinate candidate; it does not prove current licensure, accreditation, emergency capability or operational status.
+Repeat batches after reviewing match quality and Google usage. The script stores Census TIGER address-range coordinates for matched addresses. Census coordinates are interpolated along address ranges and may not pinpoint a building entrance. Review ambiguous or skipped records manually. A geocode match does not prove current licensure, accreditation, emergency capability or operational status.
 
 ## Runtime behaviour
 
