@@ -379,10 +379,8 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
     neighborhood: addressData?.formattedAddress || 'Property address not selected',
     city: addressData?.city || '',
     state: addressData?.state || '',
-    proximityToHospital: addressData?.nearestHospitalDistances?.[0]
-      ? addressData.nearestHospitalDistances[0].distanceMiles + ' miles'
-      : 'Calculated after address confirmation',
-    nearestHospital: addressData?.nearestHospitalDistances?.[0]?.hospital || 'Not yet calculated',
+    proximityToHospital: 'Calculated from the confirmed property location',
+    nearestHospital: 'Nearby hospitals are detected automatically',
     driveTimeMinutes: 0,
     monthlyRate: roomPrices[0] || 1950,
     weeklyRate: Math.round((roomPrices[0] || 1950) / 4),
@@ -390,8 +388,8 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
     baths: 1,
     sqft: 850,
     images: listingPhotos.map(p => p.url),
-    nurseRating: 5.0,
-    reviewsCount: 1,
+    nurseRating: 0,
+    reviewsCount: 0,
     amenities: {
       blackoutCurtains: hasBlackout,
       whiteNoiseMachine: true,
@@ -404,7 +402,7 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
       privateEntrance: propertyType === 'entire_property',
     },
     contractFlexProtection: cancellationTier === 'Flexible',
-    featuredSanctuary: true,
+    featuredSanctuary: false,
     propertyType: propertyType,
     petFee: petFee,
     parkingFee: parkingFee,
