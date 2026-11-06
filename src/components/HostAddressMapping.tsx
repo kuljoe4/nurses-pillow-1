@@ -80,7 +80,16 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
   const [placeId, setPlaceId] = useState<string | null>(initialLocation?.placeId || null);
 
   useEffect(() => {
-    if (!initialLocation) return;
+    if (!initialLocation) {
+      setAddressInput("");
+      setCoords({ lat: 39.5, lng: -98.35 });
+      setCityState("");
+      setPlaceId(null);
+      setHasSelectedLocation(false);
+      setIsConfirmed(false);
+      setNearbyDistances([]);
+      return;
+    }
     setAddressInput(initialLocation.formattedAddress);
     setCoords({ lat: initialLocation.lat, lng: initialLocation.lng });
     setCityState([initialLocation.city, initialLocation.state, initialLocation.zipCode].filter(Boolean).join(", "));
