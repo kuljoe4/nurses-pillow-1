@@ -376,12 +376,14 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
   const previewListingObject: HousingListing = {
     id: editingListingId || 'preview-id',
     title: listingTitle || 'Sanctuary Stay',
-    neighborhood: addressData?.formattedAddress || 'Durham, NC',
-    city: addressData?.city || 'Durham',
-    state: addressData?.state || 'NC',
-    proximityToHospital: 'Under 1 Mile',
-    nearestHospital: 'Duke University Hospital',
-    driveTimeMinutes: 5,
+    neighborhood: addressData?.formattedAddress || 'Property address not selected',
+    city: addressData?.city || '',
+    state: addressData?.state || '',
+    proximityToHospital: addressData?.nearestHospitalDistances?.[0]
+      ? addressData.nearestHospitalDistances[0].distanceMiles + ' miles'
+      : 'Calculated after address confirmation',
+    nearestHospital: addressData?.nearestHospitalDistances?.[0]?.hospital || 'Not yet calculated',
+    driveTimeMinutes: 0,
     monthlyRate: roomPrices[0] || 1950,
     weeklyRate: Math.round((roomPrices[0] || 1950) / 4),
     beds: roomCount || 1,
