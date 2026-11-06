@@ -20,6 +20,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
   const [isSending, setIsSending] = useState(false);
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
   const [blockReason, setBlockReason] = useState('');
+  const [statusNotice, setStatusNotice] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch threads
@@ -100,10 +101,11 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
         fetchThreads();
       } else {
         const err = await res.json();
-        alert(err.error || 'Failed to send message');
+        setStatusNotice({ type: 'error', text: err.error || 'Failed to send message' });
       }
     } catch (err) {
       console.error('Error sending message:', err);
+      setStatusNotice({ type: 'error', text: 'Network connection issue. Please try again.' });
     } finally {
       setIsSending(false);
     }
@@ -131,10 +133,14 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
         setActiveThreadId(null);
         setActiveThread(null);
         fetchThreads();
-        alert('User has been blocked. You will no longer receive communications from them.');
+        setStatusNotice({
+          type: 'success',
+          text: 'User has been blocked. You will no longer receive communications from them.',
+        });
       }
     } catch (err) {
       console.error('Error blocking user:', err);
+      setStatusNotice({ type: 'error', text: 'Unable to block user. Please try again.' });
     }
   };
 
@@ -263,22 +269,56 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                 <div ref={messagesEndRef} />
               </div>
 
+              {/* Status Notice */}
+              {statusNotice && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className={`mx-3 mb-2 px-3 py-2 rounded-xl text-xs flex items-center justify-between gap-2 border ${
+                    statusNotice.type === 'error'
+                      ? 'bg-[#F4E2DC] text-[#A8452E] border-[#A8452E]/30'
+                      : 'bg-[#E1EFE9] text-[#2F6E5E] border-[#2F6E5E]/30'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[16px]">
+                      {statusNotice.type === 'error' ? 'error' : 'check_circle'}
+                    </span>
+                    <span>{statusNotice.text}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setStatusNotice(null)}
+                    aria-label="Dismiss notice"
+                    className="p-1 hover:opacity-75 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">close</span>
+                  </button>
+                </div>
+              )}
+
               {/* Input Composer */}
               <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-100 dark:border-[#233550] flex items-center gap-2 bg-white dark:bg-[#0B1626]">
                 <input
                   type="text"
                   value={newMessageText}
-                  onChange={(e) => setNewMessageText(e.target.value)}
+                  onChange={(e) => {
+                    setNewMessageText(e.target.value);
+                    if (statusNotice?.type === 'error') setStatusNotice(null);
+                  }}
                   placeholder="Type a message..."
-                  className="flex-1 h-10 px-4 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-[#EFF6FB]/40 dark:bg-[#0E1A2E] text-[#0B2559] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#0A6FA8]"
+                  aria-label="Write a message"
+                  className="flex-1 h-10 px-4 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-[#EFF6FB]/60 dark:bg-[#0E1A2E] text-[#0B2559] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#0A6FA8] focus:ring-offset-2"
                 />
                 <button
                   type="submit"
                   disabled={!newMessageText.trim() || isSending}
-                  className="h-10 px-4 rounded-xl text-xs font-semibold bg-[#0A6FA8] text-white hover:bg-[#0C7EBF] disabled:opacity-50 transition-colors flex items-center gap-1.5 shrink-0"
+                  className="h-10 px-4 rounded-full text-xs font-semibold bg-[#0A6FA8] text-white hover:bg-[#0C7EBF] disabled:opacity-50 transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#0A6FA8] focus-visible:ring-offset-2"
                 >
-                  <span className="material-symbols-outlined text-[16px]">send</span>
-                  <span>Send</span>
+                  <span className="material-symbols-outlined text-[16px]">
+                    {isSending ? 'progress_activity' : 'send'}
+                  </span>
+                  <span>{isSending ? 'Sending...' : 'Send message'}</span>
                 </button>
               </form>
             </>
@@ -320,16 +360,16 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsBlockModalOpen(false)}
-                className="px-3.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300"
+                className="px-4 py-2 rounded-full text-xs font-medium border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               >
-                Cancel
+                Keep conversation
               </button>
               <button
                 type="button"
                 onClick={handleBlockUser}
-                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700"
+                className="px-4 py-2 rounded-full text-xs font-semibold bg-[#A8452E] text-white hover:bg-[#913b27] transition-colors"
               >
-                Block User
+                Block user
               </button>
             </div>
           </div>

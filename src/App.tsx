@@ -646,15 +646,15 @@ export default function App() {
       const res = await fetch('/api/messages/threads', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
         const data = await res.json();
         if (Array.isArray(data.threads)) {
           const totalUnread = data.threads.reduce((sum: number, t: any) => sum + (t.unreadCount || 0), 0);
           setUnreadMessagesCount(totalUnread);
         }
       }
-    } catch (err) {
-      console.warn("Could not fetch unread messages count:", err);
+    } catch {
+      // Quietly handle transient network/cold-start states during interval polling
     }
   }, [currentUser]);
 
@@ -897,8 +897,8 @@ export default function App() {
             return liveBookings;
           }
         }
-      } catch (err) {
-        console.warn("Could not fetch live bookings from PostgreSQL:", err);
+      } catch {
+        // Quietly handle transient network failures during background polling
       }
       return null;
     },

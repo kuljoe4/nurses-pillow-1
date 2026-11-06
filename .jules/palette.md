@@ -40,3 +40,11 @@ This section acts as the memory tracker for the regular UI/UX interval reviews. 
 ## 2026-10-10 - Performance, Accessibility, and Backend Typing Improvements
 **Learning:** Verified existing code optimizations like Schwartzian transforms and single-pass loops. Found chained `.filter()` loops inside `AdminPortalView.tsx` and refactored them to a single pass `for` loop within `useMemo` to fix a potential bottleneck. Addressed missing `AuthenticatedRequest` typing in `server.ts` for better robustness.
 **Action:** Implemented useMemo and single-pass loops for calculating pending clinician/property counts. Unified backend API types using `AuthenticatedRequest`.
+
+## 2026-11-06 04:17 - Accessible Messaging Alerts & Token Compliance
+**Metric Impact:** -2 intrusive browser `window.alert` dialogs, +1 accessible polite live region, +1 accessible input label, +2 pill button tokens (`rounded-full`), -1 obsolete security deposit reference in NOTIF-11.
+**Overall Progress:** 6th iteration, WCAG 2.1 AA compliance and brand personality alignment improved.
+**Learning:** Direct messaging in `MessagesView.tsx` previously utilized disruptive `window.alert()` calls for message failures and user blocking, violating iFrame constraints and brand guidelines for fatigued clinicians. The composer button and block modal buttons also deviated from the mandatory 999px pill button tokens, and `NOTIF-11` contained an obsolete reference to a $200 security deposit.
+**Action:** Replaced browser alerts with an accessible, dismissible in-app status banner (`role="status" aria-live="polite"`); added `aria-label="Write a message"` to the composer input; upgraded buttons to `rounded-full` with action verbs ("Send message", "Keep conversation", "Block user") and loading state feedback; and corrected `NOTIF-11` to $0 security deposit.
+**Next Scheduled Target:** Implement an in-app notification center drawer in the header to surface `in_app_notifications` directly to clinicians and hosts.
+

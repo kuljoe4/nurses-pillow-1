@@ -1022,7 +1022,7 @@ export const FindHousingView: React.FC<FindHousingViewProps> = ({
             </button>
           </div>
 
-          {/* 3 Protection Cards - Dynamic based on activeProtectionTab */}
+          {/* Protection Cards - Dynamic based on activeProtectionTab */}
           <AnimatePresence mode="wait">
             {activeProtectionTab === 'clinicians' ? (
               <motion.div
@@ -1031,38 +1031,57 @@ export const FindHousingView: React.FC<FindHousingViewProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 text-left"
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 text-left"
               >
                 {[
                   {
                     step: 1,
-                    title: 'Hospital Search',
-                    body: 'Search listings indexed strictly by verified drive time, hospital shuttle lines, or walking transit to your medical center.',
-                    meta: 'Radius slider & day-shift filters',
+                    icon: 'local_hospital',
+                    title: 'Hospital-Anchored Proximity',
+                    body: 'Search directly by medical facility via Google Places Autocomplete. Every listing displays calculated straight-line distance to your assignment hospital, with proximity radius filters and custom assignment stay lengths.',
+                    meta: 'Google Places Autocomplete • Straight-Line Miles',
                   },
                   {
                     step: 2,
-                    title: '4–Step Verification',
-                    body: 'Quick 2FA mobile auth, Stripe biometric ID match, and automated Nursys nursing board check create your vetted profile in minutes.',
-                    meta: 'License numbers remain private',
+                    icon: 'bedtime',
+                    title: 'Protected Sleep Protocols',
+                    body: 'Filter stays by verified restful amenities, including dedicated blackout curtains and the Quiet Daytime Environment amenity toggle designed for night-shift recovery.',
+                    meta: 'Blackout Curtains • Quiet Daytime Environment',
                   },
                   {
                     step: 3,
-                    title: '$0 Booking Fees',
-                    body: 'Travelers pay exactly what hosts list. Escrow pre-authorization hold with 24–hour host response SLA and shift-cancellation tiers.',
-                    meta: 'All utilities itemized & guaranteed',
+                    icon: 'payments',
+                    title: '$0 Traveler Platform Fees',
+                    body: 'Clinicians pay zero booking or service fees. See full, itemized pricing upfront—rent, cleaning, and any optional pet fees—with no hidden markups and no arbitrary security deposit holds.',
+                    meta: 'Zero Booking Fees • $0 Deposit Holds',
                   },
-                ].map((card, idx) => (
+                  {
+                    step: 4,
+                    icon: 'credit_score',
+                    title: 'Zero Charge Until Confirmed',
+                    body: 'Booking requests place a temporary pre-authorization hold via Stripe. If a host declines or does not respond within the review window, the hold is released immediately with zero funds captured.',
+                    meta: 'Temporary Stripe Pre-Auth • Immediate Release',
+                  },
+                  {
+                    step: 5,
+                    icon: 'security',
+                    title: 'Privacy-First Credential Protection',
+                    body: 'Your government photo ID and license documents are verified by an administrator and permanently purged upon approval. Property hosts only see your verified practitioner status—never your raw license or personal identity records.',
+                    meta: 'Admin-Verified • Auto-Purged Documents',
+                  },
+                ].map((card) => (
                   <div
                     key={card.step}
-                    className="bg-white dark:bg-[#15233a] p-8 rounded-[20px] shadow-xs border border-[rgba(11,37,89,0.06)] dark:border-[#233550] flex flex-col justify-between hover:shadow-md transition-shadow"
+                    className="bg-white dark:bg-[#15233a] p-7 sm:p-8 rounded-[20px] shadow-xs border border-[rgba(11,37,89,0.06)] dark:border-[#233550] flex flex-col justify-between hover:shadow-md transition-shadow"
                   >
                     <div>
-                      <div className="w-10 h-10 rounded-full bg-[#0A6FA8] text-white flex items-center justify-center font-bold text-sm mb-6">
-                        {card.step}
+                      <div className="w-10 h-10 rounded-full bg-[#0A6FA8] text-white flex items-center justify-center font-bold text-sm mb-5 shadow-xs">
+                        <span className="material-symbols-outlined text-[20px]">{card.icon}</span>
                       </div>
-                      <h3 className="text-lg font-bold text-[#0B2559] dark:text-white mb-2">{card.title}</h3>
-                      <p className="text-sm text-[#404850] dark:text-[#c0c7d1] leading-relaxed">
+                      <h3 className="text-base sm:text-lg font-bold text-[#0B2559] dark:text-white mb-2">
+                        {card.title}
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[#404850] dark:text-[#c0c7d1] leading-relaxed">
                         {card.body}
                       </p>
                     </div>
@@ -1083,43 +1102,66 @@ export const FindHousingView: React.FC<FindHousingViewProps> = ({
                 transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                 className="space-y-8"
               >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 text-left">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 text-left">
                   {[
                     {
                       step: 1,
+                      icon: 'verified',
                       color: 'bg-[#195b4c] dark:bg-[#aff0db] text-white dark:text-[#0B1626]',
                       metaColor: 'text-[#195b4c] dark:text-[#aff0db]',
-                      title: '100% Verified Clinicians',
-                      body: 'Every guest is an active licensed healthcare professional verified via primary-source Nursys and state medical boards. Zero party tolerance, quiet day-sleepers, and respectful professionals.',
-                      meta: 'Board-verified license & ID screening',
+                      title: 'Vetted Healthcare Professionals',
+                      body: 'Every guest completes multi-factor phone authentication, Stripe Identity biometric verification, and administrator verification of active professional standing via primary state registries.',
+                      meta: 'Multi-Factor & State Board Verified',
                     },
                     {
                       step: 2,
+                      icon: 'calendar_month',
                       color: 'bg-[#0A6FA8] text-white',
                       metaColor: 'text-[#0A6FA8] dark:text-[#93ccff]',
-                      title: 'Guaranteed Mid-Term Income',
-                      body: 'Enjoy predictable 30 to 90-day stays aligned with 13-week hospital rotations. Transparent 5% flat platform fee with automated direct deposits powered by Stripe Connect Escrow.',
-                      meta: 'Zero guest churn • Flat 5% host take-rate',
+                      title: 'Aligned Mid-Term Rotations',
+                      body: 'Receive high-quality booking requests tailored around standard 4, 8, 13, or 26-week clinical assignments and custom check-in schedules.',
+                      meta: '4, 8, 13, or 26-Week Rotations',
                     },
                     {
                       step: 3,
+                      icon: 'account_balance_wallet',
+                      color: 'bg-[#005684] text-white',
+                      metaColor: 'text-[#005684] dark:text-[#93ccff]',
+                      title: 'Simple 5% Launch Fee',
+                      body: "List for $0 upfront. Enjoy transparent direct payouts via Stripe Connect with an introductory 5% host platform fee deducted only when a verified clinician's booking is confirmed.",
+                      meta: '$0 Upfront • Flat 5% Host Payout Fee',
+                    },
+                    {
+                      step: 4,
+                      icon: 'tune',
+                      color: 'bg-[#0A6FA8] text-white',
+                      metaColor: 'text-[#0A6FA8] dark:text-[#93ccff]',
+                      title: 'Full Booking & Unit Control',
+                      body: 'Maintain total authority over your property calendar, set independent rates for entire homes or private rooms, and select your preferred cancellation tier (Flexible, Moderate, or Strict).',
+                      meta: 'Flexible, Moderate, or Strict Tiers',
+                    },
+                    {
+                      step: 5,
+                      icon: 'support_agent',
                       color: 'bg-[#745b0d] text-white',
                       metaColor: 'text-[#745b0d] dark:text-[#ffdf91]',
-                      title: 'Contract Flex Vacancy Protection',
-                      body:"If a nurse's clinical placement is unexpectedly cancelled by the hospital with staffing agency documentation, hosts receive a guaranteed 14-day vacancy stipend payout and re-listing boost.",
-                      meta: '14-day vacancy stipend guarantee',
+                      title: 'Documented Assignment Assistance',
+                      body: 'If a clinician faces unexpected hospital placement changes with documented staffing agency verification, our admin support team manually reviews the reservation to facilitate fair schedule adjustments and release dates back to your calendar.',
+                      meta: 'Staffing Agency Documented Support',
                     },
-                  ].map((card, idx) => (
+                  ].map((card) => (
                     <div
                       key={card.step}
-                      className="bg-white dark:bg-[#15233a] p-8 rounded-[20px] shadow-xs border border-[rgba(11,37,89,0.06)] dark:border-[#233550] flex flex-col justify-between hover:shadow-md transition-shadow"
+                      className="bg-white dark:bg-[#15233a] p-7 sm:p-8 rounded-[20px] shadow-xs border border-[rgba(11,37,89,0.06)] dark:border-[#233550] flex flex-col justify-between hover:shadow-md transition-shadow"
                     >
                       <div>
-                        <div className={`w-10 h-10 rounded-full ${card.color} flex items-center justify-center font-bold text-sm mb-6`}>
-                          {card.step}
+                        <div className={`w-10 h-10 rounded-full ${card.color} flex items-center justify-center font-bold text-sm mb-5 shadow-xs`}>
+                          <span className="material-symbols-outlined text-[20px]">{card.icon}</span>
                         </div>
-                        <h3 className="text-lg font-bold text-[#0B2559] dark:text-white mb-2">{card.title}</h3>
-                        <p className="text-sm text-[#404850] dark:text-[#c0c7d1] leading-relaxed">
+                        <h3 className="text-base sm:text-lg font-bold text-[#0B2559] dark:text-white mb-2">
+                          {card.title}
+                        </h3>
+                        <p className="text-xs sm:text-sm text-[#404850] dark:text-[#c0c7d1] leading-relaxed">
                           {card.body}
                         </p>
                       </div>
@@ -1133,7 +1175,7 @@ export const FindHousingView: React.FC<FindHousingViewProps> = ({
                 </div>
 
                 {onGoToHostPortal && (
-                  <div className="pt-2">
+                  <div className="pt-2 text-center">
                     <button
                       type="button"
                       onClick={onGoToHostPortal}
