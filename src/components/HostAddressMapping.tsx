@@ -373,8 +373,9 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
           📍 {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
         </div>
       </div>
+      </div>
 
-      {/* Nearby hospitals are derived from the confirmed property address. */}
+      {/* Nearby hospitals are derived from the confirmed property address. */
       <div className="p-4 rounded-2xl bg-[#f2f3ff] dark:bg-[#182840] border border-[rgba(11,37,89,0.06)] dark:border-[#233550]">
         <div className="text-xs font-bold text-[#001848] dark:text-white mb-2.5 flex items-center gap-1.5">
           <span className="material-symbols-outlined text-[16px] text-[#005684] dark:text-[#93ccff]">route</span>
