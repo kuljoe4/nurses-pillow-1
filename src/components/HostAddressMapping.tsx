@@ -44,17 +44,14 @@ const PanToLocation: React.FC<{ coords: { lat: number; lng: number } }> = ({
 
 export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
   isNightShiftMode,
-  initialAddress = "208 S LaSalle St, Durham, NC 27705",
+  initialAddress = "",
   dynamicActiveStates,
   onAddressConfirmed,
 }) => {
   const [addressInput, setAddressInput] = useState(initialAddress);
-  const [unitApt, setUnitApt] = useState("Unit 3B");
-  const [coords, setCoords] = useState<{ lat: number; lng: number }>({
-    lat: 36.0098,
-    lng: -78.9412,
-  });
-  const [cityState, setCityState] = useState("Durham, NC 27705");
+  const [unitApt, setUnitApt] = useState("");
+  const [coords, setCoords] = useState<{ lat: number; lng: number }>({ lat: 39.5, lng: -98.35 });
+  const [cityState, setCityState] = useState("");
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [placesSuggestions, setPlacesSuggestions] = useState<
     google.maps.places.AutocompleteSuggestion[]
@@ -71,6 +68,9 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
   const handleInputChange = (text: string) => {
     setAddressInput(text);
     setIsConfirmed(false);
+    setPlaceId(null);
+    setCityState("");
+    setNearbyDistances([]);
     setIsDropdownOpen(true);
 
     const trimmed = text.trim();
@@ -130,29 +130,34 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
       // Modern Places API (New) Place.fetchFields()
       const place = prediction.toPlace();
       await place.fetchFields({
-        fields: ["displayName","formattedAddress","location","addressComponents",
-        ],
+        fields: ["id", "displayName", "formattedAddress", "location", "addressComponents"],
       });
 
       if (place.location) {
         const lat = place.location.lat();
         const lng = place.location.lng();
         setCoords({ lat, lng });
+      } else {
+        throw new Error("The selected address did not include map coordinates.");
       }
+      setPlaceId(place.id || null);
+      setIsConfirmed(false);
+      setNearbyDistances([]);
 
-      let city ="Durham";
-      let state ="NC";
-      let zip ="27705";
+      let city = "";
+      let state = "";
+      let zip = "";
 
       if (place.addressComponents) {
         place.addressComponents.forEach((c) => {
-          if (c.types.includes("locality")) city = c.longText || city;
+          if (c.types.includes("locality") || (!city && c.types.includes("postal_town"))) city = c.longText || city;
           if (c.types.includes("administrative_area_level_1"))
             state = c.shortText || state;
           if (c.types.includes("postal_code")) zip = c.shortText || zip;
         });
       }
-      setCityState(`${city}, ${state} ${zip}`);
+      setCityState([city, state, zip].filter(Boolean).join(", "));
+      setAddressInput(place.formattedAddress || formattedAddress);
     } catch (err) {
       console.warn("Place.fetchFields error:", err);
     } finally {
@@ -186,14 +191,15 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
   }, [isConfirmed, coords.lat, coords.lng]);
 
   const handleConfirm = () => {
+    if (!placeId || !cityState || !addressInput.trim()) return;
     setIsConfirmed(true);
     onAddressConfirmed?.({
       formattedAddress: `${addressInput} ${unitApt ? `(${unitApt})` : ""}`.trim(),
       lat: coords.lat,
       lng: coords.lng,
-      city: cityState.split(",")[0] || "Durham",
+      city: cityState.split(",")[0] || "",
       state: currentState,
-      zipCode: cityState.split(" ").pop() || "27705",
+      zipCode: cityState.split(",").pop()?.trim() || "",
       isExpansionWaitlist: !isValidState,
       nearestHospitalDistances: nearbyDistances,
       placeId,
@@ -216,7 +222,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
             <span className="material-symbols-outlined text-[15px]">
               pin_drop
             </span>
-            <span>Location Verified</span>
+            <span>{isConfirmed ? "Address Confirmed" : "Awaiting Address"}</span>
           </span>
         </div>
 
@@ -408,7 +414,8 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
         <button
           type="button"
           onClick={handleConfirm}
-          className={`h-11 px-6 rounded-full text-white text-xs font-bold transition-all duration-200 ease-in-out shadow-xs inline-flex items-center justify-center gap-1.5 cursor-pointer ${
+          disabled={!placeId || !cityState || !addressInput.trim()}
+          className={`h-11 px-6 rounded-full text-white text-xs font-bold transition-all duration-200 ease-in-out shadow-xs inline-flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
             !isValidState
               ? "bg-[#B9822E] hover:bg-[#9d6d23] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#B9822E]"
               : "bg-[#005684] hover:bg-[#004266] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#004266]"
