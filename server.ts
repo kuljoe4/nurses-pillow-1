@@ -1784,6 +1784,7 @@ async function startServer() {
         FROM healthcare_facilities h
         INNER JOIN active_territories t
           ON UPPER(t.state_code) = UPPER(h.state) AND t.is_active = true
+        WHERE COALESCE(h.is_active, true) = true
         ORDER BY h.state, h.city, h.name
       `);
       res.json(result.rows);
