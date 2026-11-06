@@ -80,7 +80,7 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
   const [nearbyDistances, setNearbyDistances] = useState<{ hospital: string; distanceMiles: number; driveMins: number; id: string }[]>([]);
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [discoveryRadius, setDiscoveryRadius] = useState(20);
-  const [placeId, setPlaceId = useState<string | null>(initialLocation?.placeId || null);
+  const [placeId, setPlaceId] = useState<string | null>(initialLocation?.placeId || null);
 
   useEffect(() => {
     if (!initialLocation) return;
