@@ -94,8 +94,13 @@ async function main() {
              facility_type = $7, phone = $8, county = $9,
              data_source = 'CMS_HOSPITAL_GENERAL_INFORMATION', last_seen_at = NOW(),
              is_active = TRUE, updated_at = NOW()
-           WHERE cms_ccn = $1
-              OR (cms_ccn IS NULL AND LOWER(name) = LOWER($2) AND UPPER(state) = $5 AND postal_code = $6)`,
+           WHERE id = (
+             SELECT id FROM healthcare_facilities
+             WHERE cms_ccn = $1
+                OR (cms_ccn IS NULL AND LOWER(name) = LOWER($2) AND UPPER(state) = $5 AND postal_code = $6)
+             ORDER BY (latitude IS NOT NULL AND longitude IS NOT NULL) DESC, created_at ASC
+             LIMIT 1
+           )`,
           values
         );
         if (matched.rowCount) {
