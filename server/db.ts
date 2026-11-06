@@ -152,8 +152,7 @@ export const db = {
             ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ,
             ADD COLUMN IF NOT EXISTS last_verified_at TIMESTAMPTZ,
             ADD COLUMN IF NOT EXISTS data_quality_status VARCHAR(30) DEFAULT 'needs_geocoding';
-          DROP INDEX IF EXISTS idx_healthcare_facilities_cms_ccn;
-          CREATE UNIQUE INDEX idx_healthcare_facilities_cms_ccn
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_healthcare_facilities_cms_ccn
             ON healthcare_facilities(cms_ccn);
           CREATE INDEX IF NOT EXISTS idx_healthcare_facilities_state_type
             ON healthcare_facilities(state, facility_type);
