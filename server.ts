@@ -3537,14 +3537,13 @@ async function startServer() {
                SIN(RADIANS($1)) * SIN(RADIANS(h.latitude::double precision))
              ))) AS distance_miles
            FROM healthcare_facilities h
-           INNER JOIN active_territories t
-             ON UPPER(t.state_code) = UPPER(h.state) AND t.is_active = true
            WHERE COALESCE(h.is_active, true) = true
+             AND h.latitude IS NOT NULL AND h.longitude IS NOT NULL
              AND 3958.8 * ACOS(LEAST(1, GREATEST(-1,
                COS(RADIANS($1)) * COS(RADIANS(h.latitude::double precision)) *
                COS(RADIANS(h.longitude::double precision) - RADIANS($2)) +
                SIN(RADIANS($1)) * SIN(RADIANS(h.latitude::double precision))
-             ))) <= 20
+             ))) <= 50
            ORDER BY distance_miles ASC
            LIMIT 10`,
           [propertyLat, propertyLng]
