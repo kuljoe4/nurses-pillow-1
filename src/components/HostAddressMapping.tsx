@@ -422,10 +422,10 @@ export const HostAddressMapping: React.FC<HostAddressMappingProps> = ({
           }`}
         >
           <span className="material-symbols-outlined text-[16px]">
-            {!isValidState ? "bookmark_add" : "pin_drop"}
+            {currentState && !isValidState ? "bookmark_add" : "pin_drop"}
           </span>
           <span>
-            {!isValidState ? `Confirm & Save to ${currentState} Waitlist` : "Confirm Property Location"}
+            {currentState && !isValidState ? `Confirm & Save to ${currentState} Waitlist` : "Confirm Property Location"}
           </span>
         </button>
       </div>
