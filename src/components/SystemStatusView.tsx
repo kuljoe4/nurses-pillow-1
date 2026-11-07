@@ -21,37 +21,31 @@ export const SystemStatusView: React.FC<SystemStatusViewProps> = ({
     {
       name: 'Professional Credential Verification',
       category: 'Professional Verification',
-      status: 'Operational',
       description: 'Review of professional credentials and license information',
     },
     {
       name: 'Secure Payments & Host Payouts',
       category: 'Payments',
-      status: 'Operational',
       description: 'Booking payments, host payouts, and refunds',
     },
     {
       name: 'Hospital & Location Services',
       category: 'Location Services',
-      status: 'Operational',
       description: 'Hospital locations and distance information',
     },
     {
       name: 'Messages & Notifications',
       category: 'Notifications',
-      status: 'Operational',
       description: 'Account verification and booking updates',
     },
     {
       name: 'Secure Document & Photo Storage',
       category: 'Secure Storage',
-      status: 'Operational',
       description: 'Property photos and protected verification information',
     },
     {
       name: 'Platform Availability',
       category: 'Platform Services',
-      status: 'Operational',
       description: 'Core services that support the Nurses Pillow platform',
     },
   ];
@@ -172,7 +166,7 @@ export const SystemStatusView: React.FC<SystemStatusViewProps> = ({
                 <span className="material-symbols-outlined text-[32px]">verified</span>
               </div>
               <div>
-                <div className="text-lg font-bold">All Core Systems Operational</div>
+                <div className="text-lg font-bold">Platform service overview</div>
                 <div className="text-xs opacity-75 mt-0.5">
                   Service information and availability updates
                 </div>
@@ -213,13 +207,7 @@ export const SystemStatusView: React.FC<SystemStatusViewProps> = ({
                     <p className="text-xs opacity-75 leading-relaxed">{svc.description}</p>
                   </div>
 
-                  <div className="flex items-center gap-6 shrink-0 text-xs">
-                    
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      <span>{svc.status}</span>
-                    </div>
-                  </div>
+
                 </div>
               ))}
             </div>
@@ -266,14 +254,14 @@ export const SystemStatusView: React.FC<SystemStatusViewProps> = ({
             This Sanctuary Has Moved or Concluded Its Rotation
           </h1>
           <p className="text-sm opacity-80 max-w-md mx-auto leading-relaxed">
-            The listing URL you followed may have expired, or the host may have blocked off dates for private maintenance. Our hospital directory is fully stocked with nearby options.
+            The listing may no longer be available, or the dates may have changed. Return to search to explore other available properties.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <button
               onClick={onNavigateHome}
               className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#005684] text-white text-xs font-bold hover:bg-[#00476d] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#00476d] transition-all duration-200 ease-in-out shadow-md cursor-pointer"
             >
-              Search Stays Near My Hospital
+              Search housing
             </button>
             <button
               onClick={onOpenSupport}
@@ -300,9 +288,6 @@ export const SystemStatusView: React.FC<SystemStatusViewProps> = ({
           <p className="text-sm opacity-80 max-w-md mx-auto leading-relaxed">
             We are having trouble loading this information. Please try again. If the problem continues, contact support.
           </p>
-          <div className="inline-block px-3 py-1.5 rounded-lg bg-black/5 dark:bg-white/5 font-mono text-xs opacity-70">
-            
-          </div>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <button
               onClick={() => window.location.reload()}
@@ -327,24 +312,20 @@ export const SystemStatusView: React.FC<SystemStatusViewProps> = ({
             <span className="material-symbols-outlined text-[42px]">engineering</span>
           </div>
           <div className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
-            Scheduled Sanctuary System Maintenance
+            Scheduled maintenance
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight">
-            Routine Infrastructure Upgrade in Progress
+            Nurses Pillow is temporarily unavailable
           </h1>
           <p className="text-sm opacity-80 max-w-md mx-auto leading-relaxed">
-            We are performing scheduled security enhancements and state board license sync updates. All active door codes and booking confirmations remain fully operational.
+            We are carrying out planned maintenance. Please try again later. If you need help with an upcoming stay, contact support.
           </p>
-          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 max-w-sm mx-auto text-xs text-amber-800 dark:text-amber-200 text-left">
-            <div className="font-bold mb-1">Window: 02:00 AM – 04:00 AM EST</div>
-            <div>Expected completion: ~35 minutes remaining. Emergency clinician support hotline remains active 24/7.</div>
-          </div>
           <div className="pt-2">
             <button
               onClick={onOpenSupport}
               className="px-6 py-3 rounded-xl bg-[#005684] text-white text-xs font-bold hover:bg-[#00476d] focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#00476d] transition-all duration-200 ease-in-out shadow-md cursor-pointer"
             >
-              Contact 24/7 Clinical Hotline
+              Contact support
             </button>
           </div>
         </div>
@@ -357,28 +338,17 @@ export const SystemStatusView: React.FC<SystemStatusViewProps> = ({
             <span className="material-symbols-outlined text-[42px]">gavel</span>
           </div>
           <div className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
-            Account Compliance Review Notice
+            Account access notice
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight">
             Account Access Temporarily Paused
           </h1>
           <p className="text-sm opacity-80 max-w-md mx-auto leading-relaxed">
-            This account has been placed on administrative hold pending safety or compliance review under Nurses Pillow Sanctuary Standards.
+            Access to this account is temporarily unavailable while we review an account matter. Contact support for assistance.
           </p>
-          <div className="p-4 rounded-xl bg-black/5 dark:bg-white/5 border border-[rgba(11,37,89,0.1)] dark:border-[#233550] max-w-md mx-auto text-xs text-left space-y-1.5">
-            <div className="flex justify-between">
-              <span className="opacity-70">Review Reference:</span>
-              <span className="font-mono font-bold">NP-REV-2026-0814</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="opacity-70">Category:</span>
-              <span className="font-bold">Sanctuary Quiet Hours Rule Verification</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="opacity-70">Status:</span>
-              <span className="text-amber-600 font-bold">Pending Administrative Review</span>
-            </div>
-          </div>
+          <p className="text-sm opacity-80 max-w-md mx-auto leading-relaxed">
+            If you believe this is an error or need more information, contact support for assistance.
+          </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <button
               onClick={onOpenSupport}

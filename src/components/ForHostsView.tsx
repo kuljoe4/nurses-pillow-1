@@ -14,18 +14,18 @@ export const ForHostsView: React.FC<ForHostsViewProps> = ({
   const [estimatedMonthlyRent, setEstimatedMonthlyRent] = useState<number>(2400);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
-  // This estimator shows gross rent only. The applicable host service fee
-  // is configurable and must be confirmed from the host dashboard before booking.
+  // Show gross rent only: the applicable host service fee is configurable
+  // and should be confirmed from the booking details before acceptance.
   const rotation13Weeks = estimatedMonthlyRent * 3;
 
   const faqs = [
     {
-      q: 'What is the Midterm Assignment Cancellation Protection (Contract Flex)?',
-      a: 'Travel nursing rotations in North Carolina typically run for 13 weeks. Occasionally, a hospital system experiences census drops and reschedules or terminates an assignment early with agency documentation. Our policy protects both parties: traveling clinicians cancel remaining weeks penalty-free, while property hosts receive a guaranteed 14-day vacancy stipend payout and immediate calendar re-listing to mitigate downtime.',
+      q: 'What happens if a clinician's assignment changes?',
+      a: 'If a clinician's assignment changes, contact support. Cancellations, refunds, and any host compensation are handled according to the terms that apply to the booking. Review those terms before accepting a request.',
     },
     {
       q: 'How does Nurses Pillow verify clinician guests?',
-      a: 'Every traveling clinician must complete our 4-step verification: two-factor authentication, government ID biometric match, and real-time Nursys / State Nursing Board primary source verification. You host only licensed healthcare professionals.',
+      a: 'Clinicians complete identity and professional credential checks before receiving booking access. Verification status is reviewed by Nurses Pillow; hosts do not need to collect or store license documents.',
     },
     {
       q: 'What are the day-sleeper property requirements?',
@@ -33,11 +33,11 @@ export const ForHostsView: React.FC<ForHostsViewProps> = ({
     },
     {
       q: 'How and when do hosts get paid?',
-      a: 'Payouts are sent to your connected account. The applicable payout timing and status are shown in your host dashboard and booking details.',
+      a: 'Payouts are sent to your connected account. Applicable payout timing and status are shown in your host dashboard and booking details.',
     },
     {
       q: 'What is the platform fee?',
-      a: 'A host service fee applies to bookings. The current rate is shown in your host dashboard and before you confirm a booking. Nurses Pillow does not charge clinicians a booking fee.',
+      a: 'A host service fee applies to bookings. The applicable rate is displayed before you accept a booking. Nurses Pillow does not charge clinicians a booking fee.',
     },
   ];
 
@@ -66,7 +66,7 @@ export const ForHostsView: React.FC<ForHostsViewProps> = ({
               isNightShiftMode ? 'text-[#9CB3D3]' : 'text-[#404850]'
             }`}
           >
-            Provide peaceful, furnished mid-term accommodations for travel nurses on 13-week hospital assignments. Connect with healthcare professionals seeking furnished housing during work assignments.
+            Provide peaceful, furnished mid-term accommodations for traveling clinicians during hospital assignments.
           </p>
           <div className="pt-2 flex flex-wrap items-center justify-center gap-4">
             {onGoToHostPortal && (
@@ -124,9 +124,9 @@ export const ForHostsView: React.FC<ForHostsViewProps> = ({
               <div className="w-12 h-12 rounded-2xl bg-[#005684]/15 text-[#005684] dark:text-[#93ccff] flex items-center justify-center">
                 <span className="material-symbols-outlined text-[26px]">calendar_month</span>
               </div>
-              <h3 className="text-xl font-bold">30–90 Day Mid-Term Stability</h3>
+              <h3 className="text-xl font-bold">Mid-Term Housing for Clinicians</h3>
               <p className="text-sm opacity-80 leading-relaxed">
-                Escape the relentless churn, guest messaging, and high turnover of weekend vacation rentals. Travel healthcare rotations provide steady, multi-month occupancy with predictable monthly bank deposits.
+                Escape the relentless churn, guest messaging, and high turnover of weekend vacation rentals. Many healthcare assignments run for several weeks or months, offering hosts an opportunity to accommodate longer stays.
               </p>
             </div>
             <div className="mt-6 pt-4 border-t border-black/5 dark:border-white/10 text-xs font-semibold text-[#005684] dark:text-[#93ccff] flex items-center gap-1.5">
@@ -216,12 +216,6 @@ export const ForHostsView: React.FC<ForHostsViewProps> = ({
                   <span className="opacity-80">Host service fee:</span>
                   <span className="font-semibold text-gray-500 dark:text-gray-400">Shown before booking</span>
                 </div>
-                <div className="flex justify-between pb-2 border-b border-black/5 dark:border-white/10">
-                  <span className="opacity-80">Gross Monthly Rent:</span>
-                  <span className="font-bold text-[#195b4c] dark:text-[#aff0db]">
-                    ${estimatedMonthlyRent.toLocaleString()}
-                  </span>
-                </div>
                 <div className="pt-2 flex justify-between items-baseline">
                   <span className="text-xs font-bold uppercase tracking-wide">
                     Est. 13-Week Gross Rent:
@@ -259,7 +253,7 @@ export const ForHostsView: React.FC<ForHostsViewProps> = ({
             </span>
             <h2 className="text-2xl sm:text-3xl font-bold">Nurses Pillow Property Checklist</h2>
             <p className="text-sm opacity-80 mt-1 max-w-2xl">
-              To guarantee rest and recovery for clinicians treating patients at major hospitals, all registered properties meet our 4 essential criteria:
+              To support rest and recovery between clinical shifts, listings should meet these four property standards:
             </p>
           </div>
 
