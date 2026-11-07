@@ -1084,9 +1084,9 @@ export const HostPortalView: React.FC<HostPortalViewProps> = ({
                       Clinician: <span className="font-semibold text-[#0B2559] dark:text-gray-200">{req.clinicianName || 'Travel Clinician'}</span> • {req.startDate} – {req.endDate} ({req.durationWeeks} wks)
                     </p>
                     {req.paymentIntentId && (
-                      <p className="text-[11px] font-mono text-[#0A6FA8] dark:text-[#3E9AD1] mt-1 flex items-center gap-1">
+                      <p className="text-[11px] text-[#0A6FA8] dark:text-[#3E9AD1] mt-1 flex items-center gap-1">
                         <span className="material-symbols-outlined text-[14px]">lock</span>
-                        <span>Pre-Auth Hold: {req.paymentIntentId}</span>
+                        <span>Guest payment authorization received</span>
                       </p>
                     )}
                   </div>
