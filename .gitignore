@@ -54,4 +54,37 @@ bun.lock
 nurses-pillow-production-78c11d4cbd91.json
 state expansion.pdf
 
+# Internal reference material and one-off implementation artifacts
+.aistudio/
+.jules/
+.Jules/
+Nurses Pillow — Phase 1 Screen, Page & Flow Inventory/
+verification/
+uploads/
+*.orig
+*.patch
+pr_description.txt
+plan.md
+
+# Ad-hoc investigation and repair output (keep durable operational scripts only)
+test_screenshot*.mjs
+test_hamburger_dom.mjs
+test_admin.cjs
+check_db_full.cjs
+find_missing_aria*.cjs
+find_submit_buttons_without_loading.cjs
+fix_*.cjs
+fix_*.sh
+fix_*.patch
+patch_*.cjs
+patch_*.js
+patch_*.patch
+apply_stepper_fix.js
+scripts/test_empty*
+scripts/fix-*
+scripts/patch_*
+scripts/update_card.*
+scripts/server_logs.txt
+scripts/signup_modal_*.png
+scripts/empty_dashboard_final.png
 

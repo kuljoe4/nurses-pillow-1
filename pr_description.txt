@@ -1,4 +1,0 @@
-💡 What: Replaced `.slice`, `.some`, and `.find` with a single `.findIndex` loop inside `GoogleMapsSplitView`.
-🎯 Why: Multiple O(N) array scans create unnecessary performance overhead and object duplication when pulling a single listing.
-📊 Impact: Reduces time complexity and intermediate array allocations when searching the listing pool.
-🔬 Measurement: Compare UI lag when selecting properties in the GoogleMapsSplitView map component.
